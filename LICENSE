@@ -1,0 +1,81 @@
+MIT License
+
+Copyright (c) 2025 BeamNG.WorldForge Team
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+## Third-Party Licenses
+
+This project uses the following open-source software:
+
+### Frontend Dependencies
+- React (MIT License) - https://reactjs.org/
+- TypeScript (Apache 2.0) - https://www.typescriptlang.org/
+- Vite (MIT License) - https://vitejs.dev/
+- TailwindCSS (MIT License) - https://tailwindcss.com/
+- React Leaflet (Hippocratic License) - https://react-leaflet.js.org/
+- Three.js (MIT License) - https://threejs.org/
+- React Three Fiber (MIT License) - https://docs.pmnd.rs/react-three-fiber
+- Lucide React (ISC License) - https://lucide.dev/
+
+### Backend Dependencies
+- FastAPI (MIT License) - https://fastapi.tiangolo.com/
+- Python (PSF License) - https://www.python.org/
+- NumPy (BSD License) - https://numpy.org/
+- Pillow (HPND License) - https://python-pillow.org/
+- OpenCV (Apache 2.0) - https://opencv.org/
+- GDAL (MIT/X License) - https://gdal.org/
+- Rasterio (BSD License) - https://rasterio.readthedocs.io/
+
+### AI & Services
+- Google Earth Engine (proprietary, requires license)
+- Ollama (MIT License) - https://ollama.ai/
+
+### Data Sources
+- Sentinel-2 satellite imagery (ESA, free and open)
+- SRTM elevation data (NASA/USGS, public domain)
+
+---
+
+## Attribution
+
+When using BeamNG.WorldForge, please provide attribution:
+
+```
+Generated with BeamNG.WorldForge
+https://github.com/your-username/BeamNG.WorldForge
+```
+
+## Disclaimer
+
+This software is not affiliated with or endorsed by BeamNG GmbH.
+BeamNG.drive is a trademark of BeamNG GmbH.
+
+Generated maps are based on publicly available satellite data and should be used 
+for entertainment purposes only. Accuracy is not guaranteed.
+
+AI-generated content (roads, buildings) may contain errors or inaccuracies.
+Always review generated content before use.
+
+---
+
+For full license texts of dependencies, please refer to their respective repositories.
+
