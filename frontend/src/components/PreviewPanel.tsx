@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { X, Maximize2, Minimize2 } from 'lucide-react';
+import { X, Maximize2, Minimize2, Car } from 'lucide-react';
 import { Scene3D } from './3d/Scene3D';
 import { Terrain3D } from './3d/Terrain3D';
 import { Roads3D } from './3d/Roads3D';
 import { Buildings3D } from './3d/Buildings3D';
+import { TrafficSim } from './3d/TrafficSim';
 
 interface PreviewPanelProps {
   isOpen: boolean;
@@ -27,6 +28,8 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ isOpen, onClose, map
   const [showTerrain, setShowTerrain] = useState(true);
   const [showRoads, setShowRoads] = useState(true);
   const [showBuildings, setShowBuildings] = useState(true);
+  const [showTraffic, setShowTraffic] = useState(false);
+  const [showStats, setShowStats] = useState(false);
   
   if (!isOpen) return null;
   
@@ -58,6 +61,20 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ isOpen, onClose, map
               >
                 🏢 Buildings
               </button>
+              <button
+                onClick={() => setShowTraffic(!showTraffic)}
+                className={`px-3 py-1 rounded text-sm ${showTraffic ? 'bg-green-500 text-white' : 'bg-gray-200'}`}
+                title="Toggle Traffic Simulation"
+              >
+                🚗 Traffic
+              </button>
+              <button
+                onClick={() => setShowStats(!showStats)}
+                className={`px-2 py-1 rounded text-sm ${showStats ? 'bg-purple-500 text-white' : 'bg-gray-200'}`}
+                title="Show Performance Stats"
+              >
+                📊
+              </button>
             </div>
           </div>
           
@@ -82,7 +99,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ isOpen, onClose, map
         {/* 3D Viewport */}
         <div className="flex-1 relative">
           {mapData ? (
-            <Scene3D>
+            <Scene3D showStats={showStats}>
               {showTerrain && mapData.heightmapUrl && (
                 <Terrain3D
                   heightmapUrl={mapData.heightmapUrl}
@@ -105,6 +122,16 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ isOpen, onClose, map
                   buildings={mapData.buildings}
                   mapBounds={mapData.mapBounds}
                   mapSize={mapData.mapSize || 100}
+                />
+              )}
+              
+              {showTraffic && mapData.roads && mapData.roads.length > 0 && mapData.mapBounds && (
+                <TrafficSim
+                  roads={mapData.roads}
+                  mapBounds={mapData.mapBounds}
+                  mapSize={mapData.mapSize || 100}
+                  vehicleCount={10}
+                  enabled={showTraffic}
                 />
               )}
             </Scene3D>

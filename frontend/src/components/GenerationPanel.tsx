@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
-import { Download, Loader2, CheckCircle, XCircle, Play, Image as ImageIcon } from 'lucide-react'
+import { Download, Loader2, CheckCircle, XCircle, Play, Image as ImageIcon, Eye } from 'lucide-react'
 import { BoundingBox, GenerationStatus, MapGenerationRequest } from '../types'
 import { generateMap, getGenerationStatus } from '../services/api'
+import { PreviewPanel } from './PreviewPanel'
 
 interface GenerationPanelProps {
   selectedBBox: BoundingBox | null
@@ -20,6 +21,7 @@ export default function GenerationPanel({
   const [useAI, setUseAI] = useState(true)  // Этап 2: AI toggle
   const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showPreview, setShowPreview] = useState(false)  // Этап 4: 3D Preview
 
   // Poll for status updates
   useEffect(() => {
@@ -284,6 +286,15 @@ export default function GenerationPanel({
                   View Preview
                 </button>
               )}
+              
+              {/* 3D Preview Button - Этап 4 */}
+              <button
+                onClick={() => setShowPreview(true)}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
+              >
+                <Eye className="w-4 h-4" />
+                🎮 3D Preview
+              </button>
             </div>
           )}
         </div>
@@ -314,6 +325,26 @@ export default function GenerationPanel({
           <strong>Note:</strong> Generation may take 1-5 minutes depending on region size and resolution.
         </p>
       </div>
+      
+      {/* 3D Preview Modal - Этап 4 */}
+      {generationStatus?.status === 'completed' && (
+        <PreviewPanel
+          isOpen={showPreview}
+          onClose={() => setShowPreview(false)}
+          mapData={{
+            heightmapUrl: generationStatus.preview_url || '',
+            roads: [], // TODO: load from API
+            buildings: [], // TODO: load from API
+            mapBounds: selectedBBox ? {
+              minLat: selectedBBox.southWest.lat,
+              maxLat: selectedBBox.northEast.lat,
+              minLon: selectedBBox.southWest.lng,
+              maxLon: selectedBBox.northEast.lng,
+            } : undefined,
+            mapSize: 100,
+          }}
+        />
+      )}
     </div>
   )
 }

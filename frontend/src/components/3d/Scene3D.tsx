@@ -1,16 +1,19 @@
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, PerspectiveCamera, Grid } from '@react-three/drei';
+import { OrbitControls, PerspectiveCamera, Grid, Stats } from '@react-three/drei';
 import { Suspense } from 'react';
 
 interface Scene3DProps {
   children?: React.ReactNode;
+  showStats?: boolean;
 }
 
-export const Scene3D: React.FC<Scene3DProps> = ({ children }) => {
+export const Scene3D: React.FC<Scene3DProps> = ({ children, showStats = false }) => {
   return (
     <div className="w-full h-full relative">
       <Canvas shadows>
         <Suspense fallback={null}>
+          {/* Performance Stats */}
+          {showStats && <Stats />}
           {/* Camera */}
           <PerspectiveCamera makeDefault position={[0, 50, 100]} fov={60} />
           
