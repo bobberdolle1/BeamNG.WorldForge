@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - ./backend/config:/app/config
+      - ./backend/output:/app/output
+      - ./backend/temp:/app/temp
+    environment:
+      - GEE_SERVICE_ACCOUNT_KEY=config/gee-key.json
+      - GEE_PROJECT_ID=${GEE_PROJECT_ID}
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      - API_RELOAD=true
+      - CORS_ORIGINS=http://localhost:5173,http://localhost:3000
+    env_file:
+      - ./backend/.env
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - worldforge-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    command: npm run dev -- --host
+    depends_on:
+      - backend
+    networks:
+      - worldforge-network
+
+networks:
+  worldforge-network:
+    driver: bridge
+

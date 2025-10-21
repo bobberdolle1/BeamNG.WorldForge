@@ -1,0 +1,32 @@
+# Web Framework
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+python-multipart==0.0.6
+
+# Google Earth Engine
+earthengine-api==0.1.384
+
+# Geospatial processing
+rasterio==1.3.9
+GDAL==3.8.3
+numpy==1.26.3
+pillow==10.2.0
+
+# HTTP Client
+httpx==0.26.0
+
+# Data validation
+pydantic==2.5.3
+pydantic-settings==2.1.0
+
+# Utilities
+python-dotenv==1.0.0
+
+# Visualization
+matplotlib==3.8.2
+scipy==1.11.4
+
+# Computer Vision & Image Processing
+opencv-python==4.9.0.80
+scikit-image==0.22.0
+
