@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Maximize2, Minimize2, Car } from 'lucide-react';
+import { X, Maximize2, Minimize2 } from 'lucide-react';
 import { Scene3D } from './3d/Scene3D';
 import { Terrain3D } from './3d/Terrain3D';
 import { Roads3D } from './3d/Roads3D';

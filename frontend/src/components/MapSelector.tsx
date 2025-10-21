@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { MapContainer, TileLayer, Rectangle, useMapEvents } from 'react-leaflet'
 import { LatLngBounds, LatLng } from 'leaflet'
 import { BoundingBox } from '../types'
@@ -11,7 +11,7 @@ interface MapSelectorProps {
 
 function BBoxSelector({ onBBoxSelected, disabled }: MapSelectorProps) {
   const [startPoint, setStartPoint] = useState<LatLng | null>(null)
-  const [endPoint, setEndPoint] = useState<LatLng | null>(null)
+  const [_endPoint, setEndPoint] = useState<LatLng | null>(null)
   const [bounds, setBounds] = useState<LatLngBounds | null>(null)
 
   useMapEvents({

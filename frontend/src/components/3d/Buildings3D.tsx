@@ -59,9 +59,7 @@ export const Buildings3D: React.FC<Buildings3DProps> = ({ buildings, mapBounds, 
   const getBuildingColor = (type: string) => {
     switch (type) {
       case 'residential':
-        return '#c77
-
-dff8';
+        return '#c7dff8';
       case 'commercial':
         return '#94a3b8';
       case 'industrial':

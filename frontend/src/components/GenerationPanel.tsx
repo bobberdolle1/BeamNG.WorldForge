@@ -336,10 +336,10 @@ export default function GenerationPanel({
             roads: [], // TODO: load from API
             buildings: [], // TODO: load from API
             mapBounds: selectedBBox ? {
-              minLat: selectedBBox.southWest.lat,
-              maxLat: selectedBBox.northEast.lat,
-              minLon: selectedBBox.southWest.lng,
-              maxLon: selectedBBox.northEast.lng,
+              minLat: selectedBBox.min_lat,
+              maxLat: selectedBBox.max_lat,
+              minLon: selectedBBox.min_lon,
+              maxLon: selectedBBox.max_lon,
             } : undefined,
             mapSize: 100,
           }}

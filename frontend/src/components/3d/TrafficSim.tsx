@@ -79,7 +79,7 @@ export const TrafficSim: React.FC<TrafficSimProps> = ({
   }, [roadCurves, vehicleCount]);
   
   // Animation loop
-  useFrame((state, delta) => {
+  useFrame((_state, delta) => {
     if (!enabled || roadCurves.length === 0 || !groupRef.current) return;
     
     vehicles.forEach(vehicle => {
