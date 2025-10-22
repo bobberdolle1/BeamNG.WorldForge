@@ -1,0 +1,105 @@
+{
+  "app": {
+    "title": "BeamNG.WorldForge",
+    "subtitle": "Генерация карт из спутниковых данных",
+    "version": "MVP v0.1.0"
+  },
+  "nav": {
+    "map": "Карта",
+    "settings": "Настройки"
+  },
+  "map": {
+    "instructions": {
+      "title": "Как использовать:",
+      "step1": "Нажмите и перетащите на карте, чтобы выбрать регион",
+      "step2": "Настройте параметры на правой панели",
+      "step3": "Нажмите \"Сгенерировать карту\" для старта",
+      "disabled": "Выбор карты отключен во время генерации"
+    },
+    "layers": {
+      "title": "Слой карты",
+      "street": "Уличная карта",
+      "satellite": "Спутник",
+      "topographic": "Топография",
+      "hybrid": "Гибрид"
+    },
+    "selection": {
+      "size": "{{width}} × {{height}} км",
+      "ratio": "соотношение {{ratio}}:1"
+    }
+  },
+  "settings": {
+    "title": "Настройки",
+    "subtitle": "Управляйте API-ключами и настройками BeamNG.WorldForge",
+    "apiKeys": {
+      "title": "API-ключи",
+      "subtitle": "Настройте API-ключи для внешних сервисов. Все ключи надежно зашифрованы.",
+      "sentinelHubId": {
+        "label": "Sentinel Hub Client ID",
+        "description": "Бесплатные спутниковые снимки и DEM данные (30 000 запросов/мес)"
+      },
+      "sentinelHubSecret": {
+        "label": "Sentinel Hub Client Secret",
+        "description": "Секретный ключ для аутентификации Sentinel Hub"
+      },
+      "opentopography": {
+        "label": "Ключ API OpenTopography",
+        "description": "Бесплатные высокоточные DEM данные по всему миру"
+      },
+      "azureMaps": {
+        "label": "Ключ подписки Azure Maps",
+        "description": "Microsoft Azure Maps для спутниковых снимков"
+      },
+      "gee": {
+        "label": "ID проекта Google Earth Engine",
+        "description": "Опционально: для расширенных функций Earth Engine"
+      },
+      "verify": "Проверить",
+      "placeholder": "Введите {{label}}"
+    },
+    "preferences": {
+      "title": "Предпочтения",
+      "defaultDataSource": "Источник данных по умолчанию",
+      "defaultImageSource": "Источник изображений по умолчанию",
+      "language": "Язык"
+    },
+    "actions": {
+      "reset": "Сбросить",
+      "save": "Сохранить настройки",
+      "saving": "Сохранение..."
+    },
+    "messages": {
+      "saveSuccess": "Настройки успешно сохранены!",
+      "saveError": "Не удалось сохранить настройки"
+    },
+    "help": {
+      "title": "Нужна помощь?",
+      "sentinelHub": "Получить ключи API Sentinel Hub",
+      "opentopography": "Получить ключ API OpenTopography",
+      "azureMaps": "Получить подписку Azure Maps"
+    }
+  },
+  "generation": {
+    "title": "Генерация карты",
+    "selectArea": "Выберите область",
+    "configure": "Настройте",
+    "generate": "Сгенерировать карту",
+    "dataSource": "Источник данных",
+    "resolution": "Разрешение",
+    "heightmapSize": "Размер карты высот",
+    "status": {
+      "idle": "Готово к генерации",
+      "processing": "Генерация...",
+      "completed": "Генерация завершена",
+      "error": "Ошибка генерации"
+    }
+  },
+  "common": {
+    "loading": "Загрузка...",
+    "error": "Ошибка",
+    "success": "Успех",
+    "cancel": "Отмена",
+    "close": "Закрыть",
+    "download": "Скачать"
+  }
+}

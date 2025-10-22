@@ -10,16 +10,18 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@react-three/drei": "^10.7.6",
-    "@react-three/fiber": "^9.4.0",
-    "@types/three": "^0.180.0",
+    "@react-three/drei": "^9.92.0",
+    "@react-three/fiber": "^8.15.0",
     "axios": "^1.6.5",
+    "i18next": "^23.7.0",
+    "react-i18next": "^14.0.0",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.309.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-leaflet": "^4.2.1",
-    "three": "^0.180.0"
+    "three": "^0.160.0",
+    "zustand": "^4.5.5"
   },
   "devDependencies": {
     "@types/leaflet": "^1.9.8",

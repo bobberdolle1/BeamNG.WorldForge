@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse
 from contextlib import asynccontextmanager
 import uvicorn
 
-from api.routes import map_generation
+from api.routes import map_generation, settings
 from services.gee.client import initialize_gee
 
 @asynccontextmanager
@@ -48,6 +48,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(map_generation.router, prefix="/api", tags=["map-generation"])
+app.include_router(settings.router, tags=["settings"])
 
 @app.get("/")
 async def root():

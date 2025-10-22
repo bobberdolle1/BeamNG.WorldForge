@@ -6,6 +6,8 @@ RUN apt-get update && apt-get install -y \
     gdal-bin \
     libgdal-dev \
     build-essential \
+    libgl1 \
+    libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
 # Set GDAL environment variables

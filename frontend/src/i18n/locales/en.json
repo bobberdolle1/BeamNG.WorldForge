@@ -1,0 +1,105 @@
+{
+  "app": {
+    "title": "BeamNG.WorldForge",
+    "subtitle": "Generate Maps from Satellite Data",
+    "version": "MVP v0.1.0"
+  },
+  "nav": {
+    "map": "Map",
+    "settings": "Settings"
+  },
+  "map": {
+    "instructions": {
+      "title": "How to use:",
+      "step1": "Click and drag on the map to select a region",
+      "step2": "Configure settings in the right panel",
+      "step3": "Click \"Generate Map\" to start",
+      "disabled": "Map selection disabled during generation"
+    },
+    "layers": {
+      "title": "Map Layer",
+      "street": "Street Map",
+      "satellite": "Satellite",
+      "topographic": "Topographic",
+      "hybrid": "Hybrid"
+    },
+    "selection": {
+      "size": "{{width}} × {{height}} km",
+      "ratio": "{{ratio}}:1 ratio"
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Manage your API keys and preferences for BeamNG.WorldForge",
+    "apiKeys": {
+      "title": "API Keys",
+      "subtitle": "Configure API keys for external services. All keys are securely encrypted.",
+      "sentinelHubId": {
+        "label": "Sentinel Hub Client ID",
+        "description": "Free satellite imagery and DEM data (30,000 requests/month)"
+      },
+      "sentinelHubSecret": {
+        "label": "Sentinel Hub Client Secret",
+        "description": "Client secret for Sentinel Hub authentication"
+      },
+      "opentopography": {
+        "label": "OpenTopography API Key",
+        "description": "Free high-resolution DEM data worldwide"
+      },
+      "azureMaps": {
+        "label": "Azure Maps Subscription Key",
+        "description": "Microsoft Azure Maps for satellite imagery"
+      },
+      "gee": {
+        "label": "Google Earth Engine Project ID",
+        "description": "Optional: For advanced Earth Engine features"
+      },
+      "verify": "Verify",
+      "placeholder": "Enter {{label}}"
+    },
+    "preferences": {
+      "title": "Preferences",
+      "defaultDataSource": "Default Data Source",
+      "defaultImageSource": "Default Image Source",
+      "language": "Language"
+    },
+    "actions": {
+      "reset": "Reset",
+      "save": "Save Settings",
+      "saving": "Saving..."
+    },
+    "messages": {
+      "saveSuccess": "Settings saved successfully!",
+      "saveError": "Failed to save settings"
+    },
+    "help": {
+      "title": "Need Help?",
+      "sentinelHub": "Get Sentinel Hub API keys",
+      "opentopography": "Get OpenTopography API key",
+      "azureMaps": "Get Azure Maps subscription"
+    }
+  },
+  "generation": {
+    "title": "Map Generation",
+    "selectArea": "Select Area",
+    "configure": "Configure",
+    "generate": "Generate Map",
+    "dataSource": "Data Source",
+    "resolution": "Resolution",
+    "heightmapSize": "Heightmap Size",
+    "status": {
+      "idle": "Ready to generate",
+      "processing": "Generating...",
+      "completed": "Generation completed",
+      "error": "Generation failed"
+    }
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "cancel": "Cancel",
+    "close": "Close",
+    "download": "Download"
+  }
+}

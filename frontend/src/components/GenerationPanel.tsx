@@ -3,6 +3,7 @@ import { Download, Loader2, CheckCircle, XCircle, Play, Image as ImageIcon, Eye,
 import { BoundingBox, GenerationStatus, MapGenerationRequest, DataSource } from '../types'
 import { generateMap, getGenerationStatus, getDataSources } from '../services/api'
 import { PreviewPanel } from './PreviewPanel'
+import { ProgressIndicator } from './ProgressIndicator'
 
 interface GenerationPanelProps {
   selectedBBox: BoundingBox | null
@@ -267,8 +268,8 @@ export default function GenerationPanel({
       {/* Generation Status */}
       {generationStatus && (
         <div className="bg-gray-700 p-4 rounded-lg space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-white">Generation Status</h3>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-white">Generation Progress</h3>
             {generationStatus.status === 'processing' && (
               <Loader2 className="w-5 h-5 text-primary-400 animate-spin" />
             )}
@@ -280,27 +281,64 @@ export default function GenerationPanel({
             )}
           </div>
 
-          <div>
-            <div className="flex justify-between text-xs text-gray-400 mb-1">
-              <span>{generationStatus.message}</span>
-              <span>{generationStatus.progress}%</span>
-            </div>
-            <div className="w-full bg-gray-600 rounded-full h-2">
-              <div
-                className={`h-2 rounded-full transition-all duration-300 ${
-                  generationStatus.status === 'completed'
-                    ? 'bg-green-500'
-                    : generationStatus.status === 'failed'
-                    ? 'bg-red-500'
-                    : 'bg-primary-500'
-                }`}
-                style={{ width: `${generationStatus.progress}%` }}
-              />
-            </div>
-          </div>
+          {/* Detailed Progress Steps */}
+          <ProgressIndicator
+            steps={[
+              {
+                id: 'validate',
+                status: generationStatus.progress >= 5 ? 'completed' : generationStatus.progress > 0 ? 'active' : 'pending',
+                progress: generationStatus.progress < 10 ? generationStatus.progress * 10 : undefined
+              },
+              {
+                id: 'fetch_dem',
+                status: generationStatus.progress >= 20 ? 'completed' : generationStatus.progress >= 10 ? 'active' : 'pending',
+                progress: generationStatus.progress >= 10 && generationStatus.progress < 20 ? (generationStatus.progress - 10) * 10 : undefined
+              },
+              {
+                id: 'fetch_imagery',
+                status: generationStatus.progress >= 35 ? 'completed' : generationStatus.progress >= 20 ? 'active' : 'pending',
+                progress: generationStatus.progress >= 20 && generationStatus.progress < 35 ? ((generationStatus.progress - 20) / 15) * 100 : undefined
+              },
+              {
+                id: 'process_terrain',
+                status: generationStatus.progress >= 50 ? 'completed' : generationStatus.progress >= 35 ? 'active' : 'pending',
+                progress: generationStatus.progress >= 35 && generationStatus.progress < 50 ? ((generationStatus.progress - 35) / 15) * 100 : undefined
+              },
+              ...(useAI ? [
+                {
+                  id: 'segment_features',
+                  status: (generationStatus.progress >= 65 ? 'completed' : generationStatus.progress >= 50 ? 'active' : 'pending') as 'pending' | 'active' | 'completed' | 'error',
+                  progress: generationStatus.progress >= 50 && generationStatus.progress < 65 ? ((generationStatus.progress - 50) / 15) * 100 : undefined
+                },
+                {
+                  id: 'generate_roads',
+                  status: (generationStatus.progress >= 75 ? 'completed' : generationStatus.progress >= 65 ? 'active' : 'pending') as 'pending' | 'active' | 'completed' | 'error',
+                  progress: generationStatus.progress >= 65 && generationStatus.progress < 75 ? ((generationStatus.progress - 65) / 10) * 100 : undefined
+                },
+                {
+                  id: 'generate_buildings',
+                  status: (generationStatus.progress >= 85 ? 'completed' : generationStatus.progress >= 75 ? 'active' : 'pending') as 'pending' | 'active' | 'completed' | 'error',
+                  progress: generationStatus.progress >= 75 && generationStatus.progress < 85 ? ((generationStatus.progress - 75) / 10) * 100 : undefined
+                }
+              ] : []),
+              {
+                id: 'generate_jbeam',
+                status: (generationStatus.progress >= 95 ? 'completed' : generationStatus.progress >= (useAI ? 85 : 50) ? 'active' : 'pending') as 'pending' | 'active' | 'completed' | 'error',
+                progress: generationStatus.progress >= (useAI ? 85 : 50) && generationStatus.progress < 95 ? ((generationStatus.progress - (useAI ? 85 : 50)) / (useAI ? 10 : 45)) * 100 : undefined
+              },
+              {
+                id: 'package',
+                status: (generationStatus.progress >= 100 ? 'completed' : generationStatus.progress >= 95 ? 'active' : 'pending') as 'pending' | 'active' | 'completed' | 'error',
+                progress: generationStatus.progress >= 95 && generationStatus.progress < 100 ? (generationStatus.progress - 95) * 20 : undefined
+              }
+            ]}
+            currentMessage={generationStatus.message}
+          />
 
           {generationStatus.error && (
-            <p className="text-xs text-red-400">{generationStatus.error}</p>
+            <div className="mt-3 p-3 bg-red-900/30 border border-red-500/30 rounded-lg">
+              <p className="text-xs text-red-400">{generationStatus.error}</p>
+            </div>
           )}
 
           {/* AI Statistics - Этап 2 */}

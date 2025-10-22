@@ -1,7 +1,7 @@
 """Generate segmentation masks from AI detection results"""
 
 import numpy as np
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, List, Tuple, Optional
 from PIL import Image, ImageDraw
 import cv2
 
