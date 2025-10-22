@@ -432,6 +432,7 @@ def _get_data_source(source_type: str):
     source_map = {
         "sentinel_hub": DataSourceType.SENTINEL_HUB,
         "opentopography": DataSourceType.OPENTOPOGRAPHY,
+        "bing_maps": DataSourceType.BING_MAPS,
         "google_earth_engine": DataSourceType.GOOGLE_EARTH_ENGINE
     }
     

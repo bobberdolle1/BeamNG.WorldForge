@@ -12,6 +12,7 @@ class DataSourceType(str, Enum):
     """Available data source types"""
     SENTINEL_HUB = "sentinel_hub"
     OPENTOPOGRAPHY = "opentopography"
+    BING_MAPS = "bing_maps"
     GOOGLE_EARTH_ENGINE = "google_earth_engine"
 
 

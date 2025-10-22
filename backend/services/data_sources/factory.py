@@ -44,6 +44,10 @@ class DataSourceFactory:
             from .opentopography_client import OpenTopographyDataSource
             instance = OpenTopographyDataSource(config)
         
+        elif source_type == DataSourceType.BING_MAPS:
+            from .bing_maps_client import BingMapsDataSource
+            instance = BingMapsDataSource(config)
+        
         elif source_type == DataSourceType.GOOGLE_EARTH_ENGINE:
             from .gee_adapter import GEEDataSource
             instance = GEEDataSource(config)

@@ -22,9 +22,9 @@ class MapGenerationRequest(BaseModel):
     bbox: BoundingBox = Field(..., description="Geographic bounding box")
     resolution: Optional[int] = Field(30, description="DEM resolution in meters", ge=10, le=100)
     heightmap_size: Optional[int] = Field(1024, description="Heightmap texture size (power of 2)", ge=512, le=4096)
-    data_source: Optional[Literal["auto", "sentinel_hub", "opentopography", "google_earth_engine"]] = Field(
+    data_source: Optional[Literal["auto", "sentinel_hub", "opentopography", "bing_maps", "google_earth_engine"]] = Field(
         "auto",
-        description="Data source to use (auto=best available, sentinel_hub=free, opentopography=free DEM only, google_earth_engine=requires setup)"
+        description="Data source to use (auto=best available, sentinel_hub=free, opentopography=free DEM only, bing_maps=requires key, google_earth_engine=requires setup)"
     )
     use_ai_segmentation: Optional[bool] = Field(False, description="Enable AI-powered image segmentation (Etап 2)")
     
