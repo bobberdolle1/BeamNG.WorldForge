@@ -2,29 +2,41 @@
   "app": {
     "title": "BeamNG.WorldForge",
     "subtitle": "Generate Maps from Satellite Data",
-    "version": "MVP v0.1.0"
+    "version": "v1.5.0"
   },
   "nav": {
     "map": "Map",
     "settings": "Settings"
   },
   "map": {
+    "search": {
+      "placeholder": "Search location (e.g., San Francisco, Tokyo, Moscow)...",
+      "button": "Search",
+      "searching": "Searching..."
+    },
+    "selectionMode": {
+      "on": "Selection Mode: ON",
+      "off": "Selection Mode: OFF",
+      "hint": "Click button above to enable square selection"
+    },
     "instructions": {
-      "title": "How to use:",
-      "step1": "Click and drag on the map to select a region",
-      "step2": "Configure settings in the right panel",
-      "step3": "Click \"Generate Map\" to start",
+      "title": "🎯 How to select area:",
+      "step1": "Enable Selection Mode (right panel)",
+      "step2": "Click and drag to create square",
+      "step3": "Release to confirm selection",
+      "searchHint": "💡 Use search bar to find locations quickly",
       "disabled": "Map selection disabled during generation"
     },
     "layers": {
       "title": "Map Layer",
-      "street": "Street Map",
-      "satellite": "Satellite",
-      "topographic": "Topographic",
-      "hybrid": "Hybrid"
+      "street": "🗺️ Street Map",
+      "satellite": "🛰️ Satellite",
+      "topographic": "⛰️ Topographic",
+      "hybrid": "🌍 Hybrid"
     },
     "selection": {
       "size": "{{width}} × {{height}} km",
+      "square": "{{area}} km²",
       "ratio": "{{ratio}}:1 ratio"
     }
   },
@@ -81,18 +93,51 @@
   },
   "generation": {
     "title": "Map Generation",
+    "mapName": "Map Name",
+    "mapNamePlaceholder": "Enter map name (e.g., san_francisco)",
     "selectArea": "Select Area",
     "configure": "Configure",
     "generate": "Generate Map",
+    "generating": "Generating...",
     "dataSource": "Data Source",
-    "resolution": "Resolution",
+    "imageSource": "Image Source",
+    "resolution": "DEM Resolution",
     "heightmapSize": "Heightmap Size",
+    "aiSegmentation": "AI-Powered Segmentation",
+    "aiDescription": "Automatically detect roads, buildings, water, and forests",
     "status": {
       "idle": "Ready to generate",
       "processing": "Generating...",
       "completed": "Generation completed",
       "error": "Generation failed"
+    },
+    "progress": {
+      "validating": "Validating parameters",
+      "downloadingDEM": "Downloading DEM data",
+      "downloadingImagery": "Downloading satellite imagery",
+      "processingTerrain": "Processing terrain",
+      "aiSegmentation": "AI object detection",
+      "generatingRoads": "Generating roads",
+      "generatingBuildings": "Generating buildings",
+      "generatingCode": "Generating JBeam code",
+      "packaging": "Packaging map"
+    },
+    "results": {
+      "roadsDetected": "Roads detected: {{count}}",
+      "buildingsDetected": "Buildings detected: {{count}}",
+      "downloadMap": "Download Map (.zip)",
+      "viewPreview": "View Preview",
+      "preview3D": "🎮 3D Preview"
     }
+  },
+  "preview": {
+    "title": "3D Preview",
+    "controls": "Use mouse to rotate • Scroll to zoom • Right-click to pan",
+    "mapSize": "Map Size",
+    "coordinates": "Coordinates",
+    "roads": "Roads",
+    "detected": "{{count}} detected",
+    "tip": "💡 Tip: This is a preview visualization. The actual BeamNG.drive map will have higher quality textures and physics."
   },
   "common": {
     "loading": "Loading...",
@@ -100,6 +145,10 @@
     "success": "Success",
     "cancel": "Cancel",
     "close": "Close",
-    "download": "Download"
+    "download": "Download",
+    "back": "Back",
+    "next": "Next",
+    "finish": "Finish",
+    "retry": "Retry"
   }
 }

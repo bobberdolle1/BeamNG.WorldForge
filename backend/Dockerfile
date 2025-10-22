@@ -1,5 +1,5 @@
 # Backend Dockerfile for BeamNG.WorldForge
-FROM python:3.11-slim
+FROM python:3.13-slim
 
 # Install system dependencies for GDAL/rasterio
 RUN apt-get update && apt-get install -y \
