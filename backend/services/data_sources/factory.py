@@ -48,6 +48,10 @@ class DataSourceFactory:
             from .bing_maps_client import BingMapsDataSource
             instance = BingMapsDataSource(config)
         
+        elif source_type == DataSourceType.AZURE_MAPS:
+            from .azure_maps_client import AzureMapsDataSource
+            instance = AzureMapsDataSource(config)
+        
         elif source_type == DataSourceType.GOOGLE_EARTH_ENGINE:
             from .gee_adapter import GEEDataSource
             instance = GEEDataSource(config)

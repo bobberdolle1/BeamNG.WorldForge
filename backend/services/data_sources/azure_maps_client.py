@@ -1,11 +1,12 @@
 """
-Bing Maps Imagery API data source implementation
+Azure Maps data source implementation
 
 Provides access to:
 - High-resolution satellite imagery (aerial photos)
-- Better quality in some regions compared to free sources
+- Microsoft's replacement for Bing Maps
+- Better quality and future-proof solution
 
-Requires Bing Maps API key (free tier available)
+Requires Azure Maps account and subscription key
 """
 
 import os
@@ -14,32 +15,31 @@ import requests
 from typing import Tuple, Optional
 from PIL import Image
 from io import BytesIO
-from math import pi, sin, cos, log, exp, atan, floor, ceil
+from math import pi, sin, cos, log, exp, atan
 
 from .base import DataSourceInterface, DataSourceType
 
 
-class BingMapsDataSource(DataSourceInterface):
+class AzureMapsDataSource(DataSourceInterface):
     """
-    Bing Maps Imagery API client
+    Azure Maps Rendering API client
     
-    ⚠️  DEPRECATED: Bing Maps is being retired by Microsoft.
-    Please migrate to Azure Maps instead.
+    Microsoft's modern replacement for Bing Maps
     
     Authentication:
-    - Requires Bing Maps API key
-    - Get free key at: https://www.bingmapsportal.com/
-    - Free tier: 125,000 transactions/year
+    - Requires Azure Maps subscription key
+    - Get account at: https://azure.microsoft.com/en-us/products/azure-maps/
+    - Free tier: S0 - 1,000 transactions/day, 5 requests/second
     """
     
-    BASE_URL = "https://dev.virtualearth.net/REST/v1/Imagery"
-    TILE_SIZE = 256  # Bing Maps uses 256x256 tiles
+    BASE_URL = "https://atlas.microsoft.com/map/tile"
+    TILE_SIZE = 256  # Azure Maps uses 256x256 tiles
     
     def __init__(self, config: Optional[dict] = None):
         super().__init__(config)
         
-        # Get API key from config or environment
-        self.api_key = self.config.get('api_key') or os.getenv('BING_MAPS_API_KEY')
+        # Get subscription key from config or environment
+        self.subscription_key = self.config.get('subscription_key') or os.getenv('AZURE_MAPS_SUBSCRIPTION_KEY')
     
     def get_dem_data(
         self,
@@ -47,12 +47,12 @@ class BingMapsDataSource(DataSourceInterface):
         resolution: int = 30
     ) -> Tuple[np.ndarray, dict]:
         """
-        Bing Maps does not provide DEM data
+        Azure Maps does not provide DEM data
         
         This method raises NotImplementedError. Use OpenTopography or other sources for DEM.
         """
         raise NotImplementedError(
-            "Bing Maps only provides satellite imagery, not DEM data. "
+            "Azure Maps only provides satellite imagery, not DEM data. "
             "Use OpenTopography, Sentinel Hub, or Google Earth Engine for elevation data."
         )
     
@@ -62,18 +62,18 @@ class BingMapsDataSource(DataSourceInterface):
         resolution: int = 10
     ) -> Tuple[np.ndarray, dict]:
         """
-        Fetch satellite imagery from Bing Maps
+        Fetch satellite imagery from Azure Maps
         
-        Uses Bing Maps Imagery API to download aerial photos
+        Uses Azure Maps Render Service to download satellite tiles
         """
-        if not self.api_key:
+        if not self.subscription_key:
             raise ValueError(
-                "Bing Maps API key is required. "
-                "Set BING_MAPS_API_KEY environment variable or provide in config. "
-                "Get free key at: https://www.bingmapsportal.com/"
+                "Azure Maps subscription key is required. "
+                "Set AZURE_MAPS_SUBSCRIPTION_KEY environment variable or provide in config. "
+                "Get free account at: https://azure.microsoft.com/en-us/products/azure-maps/"
             )
         
-        print(f"📡 Fetching satellite image from Bing Maps...")
+        print(f"📡 Fetching satellite image from Azure Maps...")
         
         min_lon, min_lat, max_lon, max_lat = bbox
         
@@ -107,7 +107,7 @@ class BingMapsDataSource(DataSourceInterface):
             'height': rgb_data.shape[0],
             'resolution': resolution,
             'zoom_level': zoom,
-            'source': 'Bing Maps - Aerial Imagery'
+            'source': 'Azure Maps - Satellite Imagery'
         }
         
         print(f"✅ Satellite image fetched: {rgb_data.shape}")
@@ -115,51 +115,57 @@ class BingMapsDataSource(DataSourceInterface):
         return rgb_data, metadata
     
     def test_connection(self) -> bool:
-        """Test Bing Maps API connection"""
-        if not self.api_key:
-            print("⚠️  Bing Maps API key not configured")
+        """Test Azure Maps API connection"""
+        if not self.subscription_key:
+            print("⚠️  Azure Maps subscription key not configured")
             return False
         
         try:
-            # Test with metadata request (doesn't count against quota)
-            url = f"{self.BASE_URL}/Metadata/Aerial/47.6,-122.3"
-            params = {'key': self.api_key}
+            # Test with a single tile request (low quota impact)
+            # Test tile: zoom 1, x=0, y=0 (small, always available)
+            url = f"{self.BASE_URL}/png"
+            params = {
+                'api-version': '2.0',
+                'tilesetId': 'microsoft.imagery',
+                'zoom': 1,
+                'x': 0,
+                'y': 0,
+                'subscription-key': self.subscription_key
+            }
             
             response = requests.get(url, params=params, timeout=10)
             
             if response.status_code == 200:
-                data = response.json()
-                if data.get('statusCode') == 200:
-                    print("✅ Bing Maps connection test passed")
-                    return True
-                else:
-                    print(f"⚠️  Bing Maps API error: {data.get('statusDescription')}")
-                    return False
+                print("✅ Azure Maps connection test passed")
+                return True
+            elif response.status_code == 401:
+                print("⚠️  Azure Maps: Invalid subscription key")
+                return False
+            elif response.status_code == 403:
+                print("⚠️  Azure Maps: Access forbidden (check subscription)")
+                return False
             else:
-                print(f"⚠️  Bing Maps test failed: HTTP {response.status_code}")
+                print(f"⚠️  Azure Maps test failed: HTTP {response.status_code}")
                 return False
                 
         except Exception as e:
-            print(f"❌ Bing Maps connection test failed: {e}")
+            print(f"❌ Azure Maps connection test failed: {e}")
             return False
     
     def requires_setup(self) -> bool:
-        """Bing Maps requires API key"""
+        """Azure Maps requires subscription key"""
         return True
     
     def get_source_name(self) -> str:
-        return "Bing Maps"
+        return "Azure Maps"
     
     def get_source_description(self) -> str:
         return (
-            "Bing Maps - High-resolution aerial imagery\n"
-            "\n"
-            "⚠️  DEPRECATED: Being retired by Microsoft. Use Azure Maps instead!\n"
-            "\n"
-            "- High-quality aerial photos\n"
-            "- Better coverage in some regions (US, Europe)\n"
-            "- Free tier: 125,000 transactions/year\n"
-            "- Requires API key: https://www.bingmapsportal.com/\n\n"
+            "Azure Maps - Microsoft's modern mapping platform\n"
+            "- High-quality satellite imagery\n"
+            "- Replacement for Bing Maps (recommended by Microsoft)\n"
+            "- Free tier: S0 - 1,000 transactions/day\n"
+            "- Requires Azure account: https://azure.microsoft.com/en-us/products/azure-maps/\n\n"
             "⚠️  Note: Does not provide DEM data (use with OpenTopography/Sentinel Hub for terrain)"
         )
     
@@ -167,7 +173,7 @@ class BingMapsDataSource(DataSourceInterface):
         """
         Convert lat/lon to tile coordinates at given zoom level
         
-        Uses Bing Maps tile system (Mercator projection)
+        Uses Web Mercator projection (EPSG:3857)
         """
         lat_rad = lat * pi / 180.0
         n = 2.0 ** zoom
@@ -203,33 +209,18 @@ class BingMapsDataSource(DataSourceInterface):
         
         return tiles
     
-    def _tile_to_quadkey(self, x: int, y: int, zoom: int) -> str:
-        """
-        Convert tile coordinates to Bing Maps quadkey
-        
-        Bing Maps uses quadkey system for tile addressing
-        """
-        quadkey = []
-        for i in range(zoom, 0, -1):
-            digit = 0
-            mask = 1 << (i - 1)
-            if (x & mask) != 0:
-                digit += 1
-            if (y & mask) != 0:
-                digit += 2
-            quadkey.append(str(digit))
-        return ''.join(quadkey)
-    
     def _download_tile(self, x: int, y: int, zoom: int) -> Image.Image:
-        """Download a single tile from Bing Maps"""
-        quadkey = self._tile_to_quadkey(x, y, zoom)
+        """Download a single tile from Azure Maps"""
+        url = f"{self.BASE_URL}/png"
         
-        # Bing Maps tile URL format
-        # Subdomain: t0-t3 (for load balancing)
-        subdomain = ['t0', 't1', 't2', 't3'][hash(quadkey) % 4]
-        url = f"http://{subdomain}.tiles.virtualearth.net/tiles/a{quadkey}.jpeg"
-        
-        params = {'g': '0', 'key': self.api_key}
+        params = {
+            'api-version': '2.0',
+            'tilesetId': 'microsoft.imagery',  # Satellite imagery tileset
+            'zoom': zoom,
+            'x': x,
+            'y': y,
+            'subscription-key': self.subscription_key
+        }
         
         response = requests.get(url, params=params, timeout=30)
         response.raise_for_status()
@@ -314,11 +305,11 @@ class BingMapsDataSource(DataSourceInterface):
         """
         Calculate appropriate zoom level for target resolution
         
-        Bing Maps zoom levels:
+        Azure Maps zoom levels (similar to standard web maps):
         - Level 1: ~78 km/pixel
         - Level 10: ~152 m/pixel
         - Level 15: ~4.8 m/pixel
-        - Level 19: ~0.3 m/pixel (max)
+        - Level 20: ~0.15 m/pixel (max)
         """
         from math import cos, radians
         
@@ -327,14 +318,13 @@ class BingMapsDataSource(DataSourceInterface):
         # Center latitude for calculating meters per pixel
         center_lat = (min_lat + max_lat) / 2
         
-        # Calculate desired pixels based on bbox size and resolution
+        # Calculate bbox size in meters
         lat_diff = max_lat - min_lat
         lon_diff = max_lon - min_lon
         
         # Earth circumference at equator
         earth_circumference = 40075017  # meters
         
-        # Calculate bbox size in meters
         lat_meters = lat_diff * (earth_circumference / 360)
         lon_meters = lon_diff * (earth_circumference / 360) * cos(radians(center_lat))
         
@@ -345,27 +335,23 @@ class BingMapsDataSource(DataSourceInterface):
         required_pixels = bbox_meters / target_resolution
         
         # Find appropriate zoom level
-        # At zoom level z, map size is 256 * 2^z pixels
-        # We want to cover bbox with required_pixels
-        
-        # Start from zoom level that gives roughly the right resolution
-        for zoom in range(1, 20):
+        for zoom in range(1, 21):  # Azure Maps supports up to zoom 20
             map_size_pixels = 256 * (2 ** zoom)
-            # At this zoom, how many pixels cover our bbox?
             pixels_per_degree = map_size_pixels / 360
             bbox_pixels = lon_diff * pixels_per_degree
             
             if bbox_pixels >= required_pixels * 0.8:  # 80% threshold
-                return min(zoom, 19)  # Max zoom is 19
+                return min(zoom, 20)  # Max zoom is 20
         
-        return 19  # Default to max zoom
+        return 20  # Default to max zoom
 
 
-# Helper function for sinh (not in math for Python < 3.11)
+# Helper functions
 def sinh(x):
+    """Hyperbolic sine"""
     return (exp(x) - exp(-x)) / 2
 
 
 def tan(x):
-    from math import sin, cos
+    """Tangent"""
     return sin(x) / cos(x)

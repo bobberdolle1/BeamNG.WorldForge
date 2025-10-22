@@ -14,7 +14,7 @@ export interface MapGenerationRequest {
   bbox: BoundingBox;
   resolution?: number;
   heightmap_size?: number;
-  data_source?: 'auto' | 'sentinel_hub' | 'opentopography' | 'bing_maps' | 'google_earth_engine';
+  data_source?: 'auto' | 'sentinel_hub' | 'opentopography' | 'bing_maps' | 'azure_maps' | 'google_earth_engine';
   use_ai_segmentation?: boolean;  // Этап 2: AI features
 }
 

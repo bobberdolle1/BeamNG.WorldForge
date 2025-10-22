@@ -12,7 +12,8 @@ class DataSourceType(str, Enum):
     """Available data source types"""
     SENTINEL_HUB = "sentinel_hub"
     OPENTOPOGRAPHY = "opentopography"
-    BING_MAPS = "bing_maps"
+    BING_MAPS = "bing_maps"  # Deprecated - use AZURE_MAPS instead
+    AZURE_MAPS = "azure_maps"
     GOOGLE_EARTH_ENGINE = "google_earth_engine"
 
 
