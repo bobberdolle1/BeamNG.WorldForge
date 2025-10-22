@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
-import { Download, Loader2, CheckCircle, XCircle, Play, Image as ImageIcon, Eye } from 'lucide-react'
-import { BoundingBox, GenerationStatus, MapGenerationRequest } from '../types'
-import { generateMap, getGenerationStatus } from '../services/api'
+import { Download, Loader2, CheckCircle, XCircle, Play, Image as ImageIcon, Eye, Database } from 'lucide-react'
+import { BoundingBox, GenerationStatus, MapGenerationRequest, DataSource } from '../types'
+import { generateMap, getGenerationStatus, getDataSources } from '../services/api'
 import { PreviewPanel } from './PreviewPanel'
 
 interface GenerationPanelProps {
@@ -18,10 +18,25 @@ export default function GenerationPanel({
   const [mapName, setMapName] = useState('')
   const [resolution, setResolution] = useState(30)
   const [heightmapSize, setHeightmapSize] = useState(1024)
+  const [dataSource, setDataSource] = useState<string>('auto')
+  const [availableSources, setAvailableSources] = useState<DataSource[]>([])
   const [useAI, setUseAI] = useState(true)  // Этап 2: AI toggle
   const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showPreview, setShowPreview] = useState(false)  // Этап 4: 3D Preview
+
+  // Fetch available data sources on mount
+  useEffect(() => {
+    const fetchSources = async () => {
+      try {
+        const data = await getDataSources()
+        setAvailableSources(data.sources)
+      } catch (err) {
+        console.error('Failed to fetch data sources:', err)
+      }
+    }
+    fetchSources()
+  }, [])
 
   // Poll for status updates
   useEffect(() => {
@@ -69,6 +84,7 @@ export default function GenerationPanel({
         bbox: selectedBBox,
         resolution,
         heightmap_size: heightmapSize,
+        data_source: dataSource as any,
         use_ai_segmentation: useAI,  // Этап 2: включаем AI
       }
 
@@ -174,6 +190,44 @@ export default function GenerationPanel({
           <option value={2048}>2048x2048</option>
           <option value={4096}>4096x4096</option>
         </select>
+      </div>
+
+      {/* Data Source Selector */}
+      <div className="bg-gray-700 p-4 rounded-lg border border-gray-600">
+        <label className="block text-sm font-medium text-gray-300 mb-2">
+          <Database className="w-4 h-4 inline mr-2" />
+          Data Source
+        </label>
+        <select
+          value={dataSource}
+          onChange={(e) => setDataSource(e.target.value)}
+          disabled={isGenerating}
+          className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 mb-2"
+        >
+          <option value="auto">🎯 Auto (Best Available)</option>
+          {availableSources.map((source) => (
+            <option 
+              key={source.id} 
+              value={source.id}
+              disabled={!source.available}
+            >
+              {source.recommended ? '⭐ ' : ''}
+              {source.name}
+              {!source.available ? ' (Not Available)' : ''}
+              {source.requires_setup ? ' ⚙️' : ' ✅'}
+            </option>
+          ))}
+        </select>
+        {availableSources.find(s => s.id === dataSource) && (
+          <p className="text-xs text-gray-400">
+            {availableSources.find(s => s.id === dataSource)?.description.split('\n')[0]}
+          </p>
+        )}
+        {dataSource === 'auto' && (
+          <p className="text-xs text-gray-400">
+            Automatically selects best available free data source (Sentinel Hub or OpenTopography)
+          </p>
+        )}
       </div>
 
       {/* AI Segmentation Toggle - Этап 2 */}

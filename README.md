@@ -17,12 +17,13 @@
 
 ### ✨ Features
 
-- 🌍 **Real Satellite Data** - Google Earth Engine integration
+- 🌍 **Free Data Sources** - Sentinel Hub & OpenTopography (no setup required)
 - 🤖 **AI-Powered** - 715 billion parameters (qwen3-vl + qwen3-coder)
 - 🎮 **3D Preview** - Interactive visualization with Three.js
 - 🚗 **Traffic Simulation** - Animated vehicles on generated roads
 - 🏗️ **Complete Automation** - From satellite to playable in minutes
 - 📦 **Ready-to-Play** - BeamNG.drive mods (ZIP)
+- ⚙️ **Flexible** - Multiple data sources (Sentinel Hub, OpenTopography, GEE)
 
 ### 🚀 Quick Start
 
@@ -31,10 +32,12 @@
 git clone <repository-url>
 cd BeamNG.WorldForge
 
-# 2. Setup Google Earth Engine credentials
-# Place your gee-key.json in backend/config/
+# 2. (Optional) Configure data sources
+# Copy backend/.env.example to backend/.env
+# Add Sentinel Hub credentials for best results (free tier available)
+# Or use OpenTopography (works without setup, limited features)
 
-# 3. Install AI models (optional but recommended)
+# 3. (Optional) Install AI models for advanced features
 ollama pull qwen3-vl qwen3-coder
 
 # 4. Launch with Docker
@@ -115,13 +118,17 @@ Select Region → AI Analyzes → AI Generates → View in 3D → Export → PLA
 
 ### 📋 Requirements
 
-**Essential:**
-- Google Cloud account + Earth Engine API
-- GEE service account JSON key
+**Essential (Nothing required! Works out-of-the-box):**
+- Works with free data sources by default
 
-**For AI features (optional):**
-- Ollama installed
-- Models: `qwen3-vl`, `qwen3-coder`
+**Recommended (for better quality):**
+- Sentinel Hub account (free tier: 30,000 processing units/month)
+- Get at: https://www.sentinel-hub.com/
+
+**Optional enhancements:**
+- OpenTopography API key (free, for higher quota)
+- Google Earth Engine (advanced features, requires setup)
+- Ollama + AI models (`qwen3-vl`, `qwen3-coder`) for AI segmentation
 
 **For development:**
 - Node.js 18+, Python 3.11+
@@ -149,12 +156,13 @@ MIT License - see [LICENSE](LICENSE). Free to use, modify, and distribute!
 
 ### ✨ Возможности
 
-- 🌍 **Реальные спутниковые данные** - интеграция с Google Earth Engine
+- 🌍 **Бесплатные источники данных** - Sentinel Hub и OpenTopography (без настройки)
 - 🤖 **AI-технологии** - 715 миллиардов параметров (qwen3-vl + qwen3-coder)
 - 🎮 **3D превью** - интерактивная визуализация с Three.js
 - 🚗 **Симуляция трафика** - анимированные автомобили на дорогах
 - 🏗️ **Полная автоматизация** - от спутника до готовой карты за минуты
 - 📦 **Готовые моды** - BeamNG.drive моды в формате ZIP
+- ⚙️ **Гибкость** - Множество источников данных (Sentinel Hub, OpenTopography, GEE)
 
 ### 🚀 Быстрый старт
 
@@ -163,10 +171,12 @@ MIT License - see [LICENSE](LICENSE). Free to use, modify, and distribute!
 git clone <repository-url>
 cd BeamNG.WorldForge
 
-# 2. Настроить Google Earth Engine
-# Поместите gee-key.json в backend/config/
+# 2. (Опционально) Настроить источники данных
+# Скопируйте backend/.env.example в backend/.env
+# Добавьте credentials Sentinel Hub для лучших результатов (бесплатный тариф)
+# Или используйте OpenTopography (работает без настройки, ограниченные функции)
 
-# 3. Установить AI модели (опционально, но рекомендуется)
+# 3. (Опционально) Установить AI модели для расширенных функций
 ollama pull qwen3-vl qwen3-coder
 
 # 4. Запустить с Docker
@@ -247,13 +257,17 @@ http://localhost:5173
 
 ### 📋 Требования
 
-**Обязательно:**
-- Google Cloud аккаунт + Earth Engine API
-- GEE service account JSON ключ
+**Обязательно (Ничего не требуется! Работает из коробки):**
+- Работает с бесплатными источниками данных по умолчанию
 
-**Для AI функций (опционально):**
-- Установленный Ollama
-- Модели: `qwen3-vl`, `qwen3-coder`
+**Рекомендуется (для лучшего качества):**
+- Аккаунт Sentinel Hub (бесплатный тариф: 30,000 единиц обработки/месяц)
+- Получить на: https://www.sentinel-hub.com/
+
+**Опциональные улучшения:**
+- API ключ OpenTopography (бесплатный, для увеличения квоты)
+- Google Earth Engine (расширенные функции, требует настройки)
+- Ollama + AI модели (`qwen3-vl`, `qwen3-coder`) для AI сегментации
 
 **Для разработки:**
 - Node.js 18+, Python 3.11+

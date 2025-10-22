@@ -9,7 +9,7 @@ import asyncio
 
 from models.map_request import MapGenerationRequest, MapGenerationResponse
 from models.terrain import HeightmapConfig
-from services.gee.client import get_dem_data, get_satellite_image
+from services.data_sources import DataSourceFactory, DataSourceType
 from services.terrain.processor import TerrainProcessor
 from services.export.beamng_exporter import BeamNGExporter
 from services.ai_segmentation.segmentor import AISegmentor
@@ -22,6 +22,57 @@ router = APIRouter()
 
 # In-memory storage for generation jobs (will use Redis in production)
 generation_jobs: Dict[str, dict] = {}
+
+
+@router.get("/data-sources")
+async def get_data_sources():
+    """
+    Get information about available data sources
+    
+    Returns:
+        List of data sources with their availability status and descriptions
+    """
+    sources_info = []
+    
+    for source_type in DataSourceType:
+        try:
+            source = DataSourceFactory.create(source_type)
+            available = source.is_available()
+            
+            sources_info.append({
+                "id": source_type.value,
+                "name": source.get_source_name(),
+                "description": source.get_source_description(),
+                "available": available,
+                "requires_setup": source.requires_setup(),
+                "recommended": source_type == DataSourceType.SENTINEL_HUB
+            })
+        except Exception as e:
+            sources_info.append({
+                "id": source_type.value,
+                "name": source_type.value,
+                "description": str(e),
+                "available": False,
+                "requires_setup": True,
+                "recommended": False
+            })
+    
+    # Get default source
+    try:
+        default_source = DataSourceFactory.get_default_source()
+        default_id = None
+        for source_type in DataSourceType:
+            if DataSourceFactory.create(source_type) == default_source:
+                default_id = source_type.value
+                break
+    except Exception:
+        default_id = None
+    
+    return {
+        "sources": sources_info,
+        "default": default_id,
+        "message": "Use 'auto' in generation request to automatically select best available source"
+    }
 
 
 @router.post("/generate", response_model=MapGenerationResponse)
@@ -150,15 +201,19 @@ async def run_map_generation(job_id: str, request: MapGenerationRequest):
     """
     try:
         # Update status
+        # Step 1: Select and initialize data source
+        data_source = _get_data_source(request.data_source)
+        source_name = data_source.get_source_name()
+        
         generation_jobs[job_id].update({
             "status": "processing",
             "progress": 10,
-            "message": "Fetching DEM data from Google Earth Engine..."
+            "message": f"Fetching DEM data from {source_name}..."
         })
         
-        # Step 1: Get DEM data from Google Earth Engine
+        # Get DEM data from selected source
         bbox = request.bbox.to_ee_geometry()
-        dem_data, dem_metadata = get_dem_data(
+        dem_data, dem_metadata = data_source.get_dem_data(
             bbox=bbox,
             resolution=request.resolution
         )
@@ -170,14 +225,24 @@ async def run_map_generation(job_id: str, request: MapGenerationRequest):
         if request.use_ai_segmentation:
             generation_jobs[job_id].update({
                 "progress": 20,
-                "message": "🤖 Fetching satellite imagery for AI analysis..."
+                "message": f"🤖 Fetching satellite imagery from {source_name} for AI analysis..."
             })
             
             # Get RGB satellite image
-            rgb_image, rgb_metadata = get_satellite_image(
-                bbox=bbox,
-                resolution=10  # 10m for Sentinel-2
-            )
+            try:
+                rgb_image, rgb_metadata = data_source.get_satellite_image(
+                    bbox=bbox,
+                    resolution=10  # 10m for Sentinel-2
+                )
+            except NotImplementedError:
+                # Source doesn't provide imagery (e.g., OpenTopography)
+                # Try to get from alternative source
+                print(f"⚠️  {source_name} doesn't provide satellite imagery, trying alternative...")
+                alt_source = _get_imagery_source()
+                rgb_image, rgb_metadata = alt_source.get_satellite_image(
+                    bbox=bbox,
+                    resolution=10
+                )
             
             generation_jobs[job_id].update({
                 "progress": 25,
@@ -347,4 +412,72 @@ async def run_map_generation(job_id: str, request: MapGenerationRequest):
         
         # Re-raise for logging
         raise
+
+
+def _get_data_source(source_type: str):
+    """
+    Get data source based on request parameter
+    
+    Args:
+        source_type: "auto", "sentinel_hub", "opentopography", or "google_earth_engine"
+    
+    Returns:
+        DataSourceInterface instance
+    """
+    if source_type == "auto":
+        # Use default (best available)
+        return DataSourceFactory.get_default_source()
+    
+    # Map string to enum
+    source_map = {
+        "sentinel_hub": DataSourceType.SENTINEL_HUB,
+        "opentopography": DataSourceType.OPENTOPOGRAPHY,
+        "google_earth_engine": DataSourceType.GOOGLE_EARTH_ENGINE
+    }
+    
+    if source_type not in source_map:
+        raise ValueError(f"Unknown data source: {source_type}")
+    
+    source = DataSourceFactory.create(source_map[source_type])
+    
+    # Check if source is available
+    if not source.is_available():
+        raise RuntimeError(
+            f"{source.get_source_name()} is not available. "
+            f"Please configure it or use 'auto' to select best available source."
+        )
+    
+    return source
+
+
+def _get_imagery_source():
+    """
+    Get a data source that provides satellite imagery
+    (fallback when primary source doesn't support imagery)
+    
+    Returns:
+        DataSourceInterface instance that supports get_satellite_image()
+    """
+    # Try Sentinel Hub first (best for imagery)
+    try:
+        sentinel = DataSourceFactory.create(DataSourceType.SENTINEL_HUB)
+        if sentinel.is_available():
+            print("✅ Using Sentinel Hub for satellite imagery")
+            return sentinel
+    except Exception:
+        pass
+    
+    # Try GEE as fallback
+    try:
+        gee = DataSourceFactory.create(DataSourceType.GOOGLE_EARTH_ENGINE)
+        if gee.is_available():
+            print("✅ Using Google Earth Engine for satellite imagery")
+            return gee
+    except Exception:
+        pass
+    
+    raise RuntimeError(
+        "No data source available for satellite imagery. "
+        "Please configure Sentinel Hub or Google Earth Engine."
+    )
 

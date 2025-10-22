@@ -1,7 +1,7 @@
 """Models for map generation requests and responses"""
 
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, Literal
 
 
 class BoundingBox(BaseModel):
@@ -22,6 +22,10 @@ class MapGenerationRequest(BaseModel):
     bbox: BoundingBox = Field(..., description="Geographic bounding box")
     resolution: Optional[int] = Field(30, description="DEM resolution in meters", ge=10, le=100)
     heightmap_size: Optional[int] = Field(1024, description="Heightmap texture size (power of 2)", ge=512, le=4096)
+    data_source: Optional[Literal["auto", "sentinel_hub", "opentopography", "google_earth_engine"]] = Field(
+        "auto",
+        description="Data source to use (auto=best available, sentinel_hub=free, opentopography=free DEM only, google_earth_engine=requires setup)"
+    )
     use_ai_segmentation: Optional[bool] = Field(False, description="Enable AI-powered image segmentation (Etап 2)")
     
     class Config:
@@ -36,6 +40,7 @@ class MapGenerationRequest(BaseModel):
                 },
                 "resolution": 30,
                 "heightmap_size": 1024,
+                "data_source": "auto",
                 "use_ai_segmentation": True
             }
         }

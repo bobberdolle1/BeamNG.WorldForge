@@ -3,7 +3,7 @@
  */
 
 import axios from 'axios'
-import { MapGenerationRequest, MapGenerationResponse, GenerationStatus } from '../types'
+import { MapGenerationRequest, MapGenerationResponse, GenerationStatus, DataSourcesResponse } from '../types'
 
 const API_BASE = '/api'
 
@@ -27,6 +27,14 @@ export async function generateMap(request: MapGenerationRequest): Promise<MapGen
  */
 export async function getGenerationStatus(jobId: string): Promise<GenerationStatus> {
   const response = await api.get<GenerationStatus>(`/status/${jobId}`)
+  return response.data
+}
+
+/**
+ * Get available data sources
+ */
+export async function getDataSources(): Promise<DataSourcesResponse> {
+  const response = await api.get<DataSourcesResponse>('/data-sources')
   return response.data
 }
 

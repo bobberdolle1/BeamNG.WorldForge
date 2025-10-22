@@ -14,6 +14,7 @@ export interface MapGenerationRequest {
   bbox: BoundingBox;
   resolution?: number;
   heightmap_size?: number;
+  data_source?: 'auto' | 'sentinel_hub' | 'opentopography' | 'google_earth_engine';
   use_ai_segmentation?: boolean;  // Этап 2: AI features
 }
 
@@ -40,5 +41,20 @@ export interface GenerationStatus {
   download_url?: string;
   preview_url?: string;
   ai_stats?: AIStats | null;  // Этап 2: AI statistics
+}
+
+export interface DataSource {
+  id: string;
+  name: string;
+  description: string;
+  available: boolean;
+  requires_setup: boolean;
+  recommended: boolean;
+}
+
+export interface DataSourcesResponse {
+  sources: DataSource[];
+  default: string | null;
+  message: string;
 }
 
