@@ -5,6 +5,70 @@ All notable changes to BeamNG.WorldForge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.1] - 2026-03-02
+
+### 🎁 Standalone Executable Release
+
+Added complete build system for standalone executables - no Docker or dependencies required!
+
+### Added
+
+#### Build System
+- 🔨 **PyInstaller integration** - Bundle Python backend into single executable
+- 📦 **Automated build script** (`build.py`) - One-command build process
+- 🤖 **GitHub Actions workflow** - Automatic builds for Windows/macOS/Linux
+- 🌐 **Embedded frontend** - Static files bundled into executable
+- 🚀 **Auto-browser launch** - Opens browser automatically on startup
+- 📋 **Build specification** (`beamng-worldforge.spec`) - Complete PyInstaller config
+
+#### Platform Support
+- 🪟 **Windows x64** - Native .exe with all dependencies
+- 🍎 **macOS x64** - Universal binary for Intel Macs
+- 🐧 **Linux x64** - Portable executable for major distros
+
+### Changed
+- 🔧 **Modified backend/main.py** - Detect PyInstaller bundle mode
+- 📁 **Static file serving** - Serve frontend from bundled files
+- 🌍 **CORS configuration** - Support standalone mode
+- 📦 **Added pyinstaller** to requirements.txt
+
+### Technical Details
+
+**Build Process:**
+1. Frontend: `npm run build` → static files
+2. Backend: Copy static files → PyInstaller bundle
+3. Output: Single-folder executable with all dependencies
+
+**Executable Features:**
+- No Python installation required
+- No Docker required
+- No npm/node required
+- Embedded web server (FastAPI + Uvicorn)
+- Auto-opens browser on http://localhost:8000
+- Portable - run from any directory
+
+**File Sizes (approximate):**
+- Windows: ~250MB (includes GDAL, OpenCV, NumPy)
+- macOS: ~220MB
+- Linux: ~200MB
+
+### Usage
+
+**Download & Run:**
+```bash
+# Windows
+BeamNG-WorldForge.exe
+
+# macOS/Linux
+./BeamNG-WorldForge
+```
+
+**Build from source:**
+```bash
+pip install -r backend/requirements.txt
+python build.py
+```
+
 ## [1.5.0] - 2026-03-02
 
 ### 🎉 Feature Complete Release!

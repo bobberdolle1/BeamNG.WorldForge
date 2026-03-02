@@ -1,0 +1,139 @@
+name: Build Release Executables
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+      
+      - name: Build executable
+        run: python build.py
+      
+      - name: Create archive
+        run: |
+          cd dist
+          Compress-Archive -Path BeamNG-WorldForge -DestinationPath BeamNG-WorldForge-Windows-x64.zip
+      
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: dist/BeamNG-WorldForge-Windows-x64.zip
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+      
+      - name: Build executable
+        run: python build.py
+      
+      - name: Create archive
+        run: |
+          cd dist
+          tar -czf BeamNG-WorldForge-macOS-x64.tar.gz BeamNG-WorldForge
+      
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-build
+          path: dist/BeamNG-WorldForge-macOS-x64.tar.gz
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgdal-dev gdal-bin
+      
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+      
+      - name: Build executable
+        run: python build.py
+      
+      - name: Create archive
+        run: |
+          cd dist
+          tar -czf BeamNG-WorldForge-Linux-x64.tar.gz BeamNG-WorldForge
+      
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-build
+          path: dist/BeamNG-WorldForge-Linux-x64.tar.gz
+
+  create-release:
+    needs: [build-windows, build-macos, build-linux]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            artifacts/windows-build/BeamNG-WorldForge-Windows-x64.zip
+            artifacts/macos-build/BeamNG-WorldForge-macOS-x64.tar.gz
+            artifacts/linux-build/BeamNG-WorldForge-Linux-x64.tar.gz
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -32,3 +32,6 @@ scipy==1.15.1
 opencv-python==4.10.0.84
 scikit-image==0.25.0
 
+# Build tools
+pyinstaller==6.11.1
+

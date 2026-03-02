@@ -5,8 +5,9 @@
 > **AI-генератор карт для BeamNG.drive на основе реальных спутниковых данных**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.5.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.5.1-blue.svg)](CHANGELOG.md)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)](https://github.com/bobberdolle1/BeamNG.WorldForge/releases)
 
 **[English](#english) | [Русский](#russian)**
 
@@ -29,6 +30,25 @@
 
 ### 🚀 Quick Start
 
+**Option 1: Standalone Executable (Recommended for users)**
+
+```bash
+# 1. Download for your platform
+# Windows: BeamNG-WorldForge-Windows-x64.zip
+# macOS: BeamNG-WorldForge-macOS-x64.tar.gz
+# Linux: BeamNG-WorldForge-Linux-x64.tar.gz
+# Get from: https://github.com/bobberdolle1/BeamNG.WorldForge/releases
+
+# 2. Extract and run
+# Windows: Double-click BeamNG-WorldForge.exe
+# macOS/Linux: ./BeamNG-WorldForge
+
+# 3. Browser opens automatically at http://localhost:8000
+# Configure API keys → Select region → Generate!
+```
+
+**Option 2: Docker (For developers)**
+
 ```bash
 # 1. Clone repository
 git clone <repository-url>
@@ -42,15 +62,9 @@ http://localhost:5173
 
 # 4. Configure API keys (via UI)
 # Click "Settings" → Enter API keys → Verify → Save
-# Sentinel Hub: https://apps.sentinel-hub.com/ (free)
-# OpenTopography: https://opentopography.org/ (free)
-# Azure Maps: https://azure.microsoft.com/products/azure-maps (optional)
-
-# 5. Generate your first map
-# Click "Map" → Select region → Configure → Generate!
 ```
 
-**That's it!** No .env files needed - configure everything through UI! 🎮
+**No installation, no dependencies, just run!** 🎮
 
 ### 🎯 How It Works
 
@@ -149,34 +163,32 @@ Select Region → Download Data → Process → Generate → View 3D → Export 
 
 ### 🎯 Project Status
 
-**v1.5.0 - Feature Complete!** ✅
+**v1.5.1 - Standalone Executable Release!** ✅
 
-- ✅ UI Settings Management with encryption
-- ✅ Advanced map interface (4 layers, grid, sizing)
-- ✅ Full localization (EN/RU)
-- ✅ Detailed progress indicators (9 stages)
-- ✅ 3D Preview with Three.js
-- ✅ Complete documentation
-- ✅ MIT Licensed
-- ✅ Production ready
+- ✅ Standalone executables for Windows/macOS/Linux
+- ✅ No installation required - just download and run
+- ✅ Automated build system with GitHub Actions
+- ✅ Embedded web server with auto-browser launch
+- ✅ All features from v1.5.0 included
 
 ### 📋 Requirements
 
-**Essential (Nothing required! Works out-of-the-box):**
-- Works with free data sources by default
+**For Standalone Executable (End Users):**
+- Nothing! Just download and run
+- Windows 10/11, macOS 10.15+, or Linux (glibc 2.31+)
+- ~500MB disk space
+- Internet connection for satellite data
 
-**Recommended (for better quality):**
-- Sentinel Hub account (free tier: 30,000 processing units/month)
-- Get at: https://www.sentinel-hub.com/
+**For Docker Setup (Developers):**
+- Docker + docker-compose
+- 2GB RAM minimum
+- Internet connection
 
-**Optional enhancements:**
-- OpenTopography API key (free, for higher quota)
-- Google Earth Engine (advanced features, requires setup)
-- Ollama + AI models (`qwen3-vl`, `qwen3-coder`) for AI segmentation
-
-**For development:**
-- Node.js 18+, Python 3.11+
-- Docker + docker-compose (recommended)
+**For Building from Source:**
+- Python 3.11+
+- Node.js 18+
+- pip, npm
+- PyInstaller (included in requirements.txt)
 
 ### 🤝 Contributing
 
@@ -373,10 +385,10 @@ BeamNG.WorldForge/
 
 ---
 
-**BeamNG.WorldForge v1.5.0** 🎉  
+**BeamNG.WorldForge v1.5.1** 🎉  
 **From Satellite to Playable in Minutes!** 🌍→🎮  
 **От спутника до игры за минуты!**  
-**Secure • Localized • Feature-Rich** 🔐🌐✨
+**Standalone • Cross-Platform • Zero Dependencies** 🚀🔐🌐
 
 ---
 
