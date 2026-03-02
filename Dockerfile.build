@@ -1,0 +1,41 @@
+# Multi-stage build for Linux executable
+FROM node:18-alpine AS frontend-builder
+
+WORKDIR /app/frontend
+COPY frontend/package*.json ./
+RUN npm install --legacy-peer-deps
+COPY frontend/ ./
+RUN npm run build
+
+FROM python:3.11-slim AS backend-builder
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    libgdal-dev \
+    gdal-bin \
+    binutils \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy backend
+COPY backend/ ./backend/
+COPY beamng-worldforge.spec ./
+
+# Copy frontend build
+COPY --from=frontend-builder /app/frontend/dist ./backend/static
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r backend/requirements.txt
+
+# Build executable
+WORKDIR /app
+RUN pyinstaller beamng-worldforge.spec --clean --noconfirm
+
+# Create archive
+RUN cd dist && tar -czf BeamNG-WorldForge-Linux-x64.tar.gz BeamNG-WorldForge
+
+FROM scratch AS export
+COPY --from=backend-builder /app/dist/BeamNG-WorldForge-Linux-x64.tar.gz /
