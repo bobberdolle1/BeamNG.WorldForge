@@ -30,41 +30,40 @@
 
 ### 🚀 Quick Start
 
-**Option 1: Standalone Executable (Recommended for users)**
+**Option 1: Standalone Executable (Windows)**
 
 ```bash
-# 1. Download for your platform
-# Windows: BeamNG-WorldForge-Windows-x64.zip
-# macOS: BeamNG-WorldForge-macOS-x64.tar.gz
-# Linux: BeamNG-WorldForge-Linux-x64.tar.gz
-# Get from: https://github.com/bobberdolle1/BeamNG.WorldForge/releases
+# 1. Download from releases
+# https://github.com/bobberdolle1/BeamNG.WorldForge/releases
+# Get: BeamNG-WorldForge-Windows-x64.zip
 
 # 2. Extract and run
-# Windows: Double-click BeamNG-WorldForge.exe
-# macOS/Linux: ./BeamNG-WorldForge
+# Double-click BeamNG-WorldForge.exe
 
 # 3. Browser opens automatically at http://localhost:8000
-# Configure API keys → Select region → Generate!
 ```
 
-**Option 2: Docker (For developers)**
+**Option 2: Build from Source (Linux/macOS)**
+
+See [BUILD_INSTRUCTIONS.md](BUILD_INSTRUCTIONS.md) for detailed steps.
 
 ```bash
-# 1. Clone repository
 git clone <repository-url>
 cd BeamNG.WorldForge
-
-# 2. Launch with Docker
-docker-compose up -d
-
-# 3. Open browser
-http://localhost:5173
-
-# 4. Configure API keys (via UI)
-# Click "Settings" → Enter API keys → Verify → Save
+pip install -r backend/requirements.txt
+python build.py
+cd dist/BeamNG-WorldForge
+./BeamNG-WorldForge
 ```
 
-**No installation, no dependencies, just run!** 🎮
+**Option 3: Docker (All platforms)**
+
+```bash
+git clone <repository-url>
+cd BeamNG.WorldForge
+docker-compose up -d
+# Open http://localhost:5173
+```
 
 ### 🎯 How It Works
 
@@ -173,22 +172,20 @@ Select Region → Download Data → Process → Generate → View 3D → Export 
 
 ### 📋 Requirements
 
-**For Standalone Executable (End Users):**
-- Nothing! Just download and run
-- Windows 10/11, macOS 10.15+, or Linux (glibc 2.31+)
+**For Windows Executable:**
+- Windows 10/11 (64-bit)
 - ~500MB disk space
 - Internet connection for satellite data
 
-**For Docker Setup (Developers):**
-- Docker + docker-compose
-- 2GB RAM minimum
-- Internet connection
-
-**For Building from Source:**
+**For Linux/macOS Build:**
 - Python 3.11+
 - Node.js 18+
-- pip, npm
-- PyInstaller (included in requirements.txt)
+- GDAL library
+- See [BUILD_INSTRUCTIONS.md](BUILD_INSTRUCTIONS.md)
+
+**For Docker:**
+- Docker + docker-compose
+- 2GB RAM minimum
 
 ### 🤝 Contributing
 
