@@ -21,7 +21,7 @@
     },
     "instructions": {
       "title": "🎯 Как выбрать область:",
-      "step1": "Включите режим выделения (правая панель)",
+      "step1": "Включите Selection Mode (справа вверху на карте)",
       "step2": "Нажмите и тяните для создания квадрата",
       "step3": "Отпустите для подтверждения",
       "searchHint": "💡 Используйте поиск для быстрого поиска мест",
@@ -117,9 +117,6 @@
       "downloadingImagery": "Загрузка спутниковых снимков",
       "processingTerrain": "Обработка рельефа",
       "aiSegmentation": "Обнаружение объектов AI",
-      "generatingRoads": "Генерация дорог",
-      "generatingBuildings": "Генерация зданий",
-      "generatingCode": "Генерация JBeam кода",
       "packaging": "Упаковка карты",
       "generatingHeightmap": "Генерация карты высот",
       "renderingPreview": "Отрисовка превью",

@@ -21,7 +21,7 @@
     },
     "instructions": {
       "title": "🎯 How to select area:",
-      "step1": "Enable Selection Mode (right panel)",
+      "step1": "Enable Selection Mode (top right of the map)",
       "step2": "Click and drag to create square",
       "step3": "Release to confirm selection",
       "searchHint": "💡 Use search bar to find locations quickly",
@@ -117,9 +117,6 @@
       "downloadingImagery": "Downloading satellite imagery",
       "processingTerrain": "Processing terrain",
       "aiSegmentation": "AI object detection",
-      "generatingRoads": "Generating roads",
-      "generatingBuildings": "Generating buildings",
-      "generatingCode": "Generating JBeam code",
       "packaging": "Packaging map",
       "generatingHeightmap": "Generating heightmap",
       "renderingPreview": "Rendering preview",
