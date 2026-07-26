@@ -2,7 +2,7 @@
   "app": {
     "title": "BeamNG.WorldForge",
     "subtitle": "Генерация карт из спутниковых данных",
-    "version": "v1.5.0"
+    "version": "v1.6.0"
   },
   "nav": {
     "map": "Карта",
@@ -120,7 +120,10 @@
       "generatingRoads": "Генерация дорог",
       "generatingBuildings": "Генерация зданий",
       "generatingCode": "Генерация JBeam кода",
-      "packaging": "Упаковка карты"
+      "packaging": "Упаковка карты",
+      "generatingHeightmap": "Генерация карты высот",
+      "renderingPreview": "Отрисовка превью",
+      "extractingVectors": "Извлечение векторной геометрии"
     },
     "results": {
       "roadsDetected": "Обнаружено дорог: {{count}}",
@@ -128,7 +131,14 @@
       "downloadMap": "Скачать карту (.zip)",
       "viewPreview": "Просмотр",
       "preview3D": " 3D превью"
-    }
+    },
+    "areaTooLarge": "Выбранная область слишком большая",
+    "selectRegionFirst": "Сначала выберите область на карте",
+    "enterMapName": "Введите название карты",
+    "dataSourceUnavailable": "Не настроен",
+    "regionSize": "Область: {{area}} км²",
+    "aiUnavailable": "AI-функции были недоступны в этом запуске",
+    "startOver": "Начать заново"
   },
   "preview": {
     "title": "3D превью",

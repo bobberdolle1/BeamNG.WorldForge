@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { MapContainer, TileLayer, Rectangle, Polyline, useMapEvents } from 'react-leaflet'
+import type { LatLngExpression, Map as LeafletMap } from 'leaflet'
 import { LatLngBounds, LatLng } from 'leaflet'
 import { BoundingBox } from '../types'
 import { Layers, Search } from 'lucide-react'
@@ -144,7 +145,7 @@ function BBoxSelector({ onBBoxSelected, disabled, isSelectionMode }: MapSelector
       {gridLines.map((line, idx) => (
         <Polyline
           key={idx}
-          positions={line as any}
+          positions={line as LatLngExpression[]}
           pathOptions={{
             color: isCreating ? '#6ee7b7' : '#93c5fd',
             weight: 1.5,
@@ -174,7 +175,7 @@ function BBoxSelector({ onBBoxSelected, disabled, isSelectionMode }: MapSelector
 
 export default function MapSelector({ onBBoxSelected, disabled }: MapSelectorProps) {
   const { t } = useTranslation()
-  const mapRef = useRef<any>(null)
+  const mapRef = useRef<LeafletMap | null>(null)
   const [mapLayer, setMapLayer] = useState<'osm' | 'satellite' | 'topo' | 'hybrid'>('osm')
   const [searchQuery, setSearchQuery] = useState('')
   const [isSearching, setIsSearching] = useState(false)

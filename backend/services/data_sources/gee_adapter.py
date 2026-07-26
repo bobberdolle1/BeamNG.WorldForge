@@ -5,11 +5,15 @@ Wraps the existing GEE client to conform to DataSourceInterface.
 This is an OPTIONAL data source that requires manual setup.
 """
 
-import numpy as np
-from typing import Tuple, Optional
 import os
 
-from .base import DataSourceInterface, DataSourceType
+import numpy as np
+
+from core.logging_config import get_logger
+
+from .base import Capability, DataSourceInterface
+
+logger = get_logger(__name__)
 
 
 class GEEDataSource(DataSourceInterface):
@@ -23,8 +27,11 @@ class GEEDataSource(DataSourceInterface):
     
     This wraps the existing GEE client for backward compatibility.
     """
+
+    #: Earth Engine hosts both elevation and imagery collections.
+    capabilities = frozenset({Capability.DEM, Capability.IMAGERY})
     
-    def __init__(self, config: Optional[dict] = None):
+    def __init__(self, config: dict | None = None):
         super().__init__(config)
         
         self._gee_initialized = False
@@ -50,13 +57,14 @@ class GEEDataSource(DataSourceInterface):
                 "4. Set GEE_SERVICE_ACCOUNT_KEY environment variable\n"
                 "5. Set GEE_PROJECT_ID environment variable\n\n"
                 "See: https://developers.google.com/earth-engine/guides/service_account"
-            )
-    
+            ) from e
+
+
     def get_dem_data(
         self,
         bbox: list,
         resolution: int = 30
-    ) -> Tuple[np.ndarray, dict]:
+    ) -> tuple[np.ndarray, dict]:
         """
         Fetch DEM data from Google Earth Engine
         
@@ -66,7 +74,7 @@ class GEEDataSource(DataSourceInterface):
         
         from services.gee.client import get_dem_data
         
-        print(f"📡 Fetching DEM from Google Earth Engine...")
+        print("📡 Fetching DEM from Google Earth Engine...")
         
         elevation_data, metadata = get_dem_data(
             bbox=bbox,
@@ -83,7 +91,7 @@ class GEEDataSource(DataSourceInterface):
         self,
         bbox: list,
         resolution: int = 10
-    ) -> Tuple[np.ndarray, dict]:
+    ) -> tuple[np.ndarray, dict]:
         """
         Fetch satellite image from Google Earth Engine
         
@@ -93,7 +101,7 @@ class GEEDataSource(DataSourceInterface):
         
         from services.gee.client import get_satellite_image
         
-        print(f"📡 Fetching satellite image from Google Earth Engine...")
+        print("📡 Fetching satellite image from Google Earth Engine...")
         
         rgb_data, metadata = get_satellite_image(
             bbox=bbox,

@@ -9,15 +9,27 @@ Free tier available with registration at https://www.sentinel-hub.com/
 """
 
 import os
-import numpy as np
-import requests
-from typing import Tuple, Optional
 from datetime import datetime, timedelta
 from io import BytesIO
-from PIL import Image
-import base64
 
-from .base import DataSourceInterface, DataSourceType
+import numpy as np
+import requests
+from PIL import Image
+
+from core.geo import pixel_dimensions
+from core.logging_config import get_logger
+
+from .base import Capability, DataSourceInterface
+
+logger = get_logger(__name__)
+
+#: Timeout for the OAuth token exchange - a small, fast request.
+_AUTH_TIMEOUT = 30.0
+
+#: Timeout for a Processing API call, which renders a raster server-side and
+#: can legitimately take a minute for a large tile. Previously these calls had
+#: no timeout at all, so a stalled connection hung the request forever.
+_REQUEST_TIMEOUT = 180.0
 
 
 class SentinelHubDataSource(DataSourceInterface):
@@ -31,8 +43,11 @@ class SentinelHubDataSource(DataSourceInterface):
     """
     
     BASE_URL = "https://services.sentinel-hub.com"
+
+    #: Sentinel Hub serves both Copernicus DEM and Sentinel-2 imagery.
+    capabilities = frozenset({Capability.DEM, Capability.IMAGERY})
     
-    def __init__(self, config: Optional[dict] = None):
+    def __init__(self, config: dict | None = None):
         super().__init__(config)
         
         # Get credentials from config or environment
@@ -45,9 +60,8 @@ class SentinelHubDataSource(DataSourceInterface):
     def _get_access_token(self) -> str:
         """Get OAuth2 access token (cached)"""
         # Return cached token if still valid
-        if self._access_token and self._token_expires:
-            if datetime.now() < self._token_expires:
-                return self._access_token
+        if self._access_token and self._token_expires and datetime.now() < self._token_expires:
+            return self._access_token
         
         # Request new token
         if not self.client_id or not self.client_secret:
@@ -64,7 +78,7 @@ class SentinelHubDataSource(DataSourceInterface):
             'client_secret': self.client_secret
         }
         
-        response = requests.post(url, data=data)
+        response = requests.post(url, data=data, timeout=_AUTH_TIMEOUT)
         response.raise_for_status()
         
         token_data = response.json()
@@ -78,14 +92,14 @@ class SentinelHubDataSource(DataSourceInterface):
         self,
         bbox: list,
         resolution: int = 30
-    ) -> Tuple[np.ndarray, dict]:
+    ) -> tuple[np.ndarray, dict]:
         """
         Fetch DEM data from Copernicus DEM
         
         Uses Copernicus DEM GLO-30 (30m resolution)
         """
-        print(f"📡 Fetching DEM from Sentinel Hub (Copernicus DEM)...")
-        print(f"   BBox: {bbox}, Resolution: {resolution}m")
+        logger.info("📡 Fetching DEM from Sentinel Hub (Copernicus DEM)...")
+        logger.info(f"   BBox: {bbox}, Resolution: {resolution}m")
         
         token = self._get_access_token()
         
@@ -143,23 +157,22 @@ class SentinelHubDataSource(DataSourceInterface):
             "evalscript": evalscript
         }
         
-        response = requests.post(url, json=payload, headers=headers)
+        response = requests.post(url, json=payload, headers=headers, timeout=_REQUEST_TIMEOUT)
         response.raise_for_status()
         
         # Parse GeoTIFF response
         from rasterio.io import MemoryFile
         
-        with MemoryFile(response.content) as memfile:
-            with memfile.open() as dataset:
-                elevation_data = dataset.read(1)
-                metadata = {
-                    'bounds': bbox,
-                    'crs': 'EPSG:4326',
-                    'width': width,
-                    'height': height,
-                    'resolution': resolution,
-                    'source': 'Sentinel Hub - Copernicus DEM GLO-30'
-                }
+        with MemoryFile(response.content) as memfile, memfile.open() as dataset:
+            elevation_data = dataset.read(1)
+            metadata = {
+                'bounds': bbox,
+                'crs': 'EPSG:4326',
+                'width': width,
+                'height': height,
+                'resolution': resolution,
+                'source': 'Sentinel Hub - Copernicus DEM GLO-30'
+            }
         
         print(f"✅ DEM data fetched: {elevation_data.shape}, "
               f"range: [{np.nanmin(elevation_data):.1f}, {np.nanmax(elevation_data):.1f}]m")
@@ -170,14 +183,14 @@ class SentinelHubDataSource(DataSourceInterface):
         self,
         bbox: list,
         resolution: int = 10
-    ) -> Tuple[np.ndarray, dict]:
+    ) -> tuple[np.ndarray, dict]:
         """
         Fetch RGB satellite image from Sentinel-2
         
         Uses Sentinel-2 L2A (atmospherically corrected)
         Resolution: 10m for RGB bands
         """
-        print(f"📡 Fetching satellite image from Sentinel Hub (Sentinel-2)...")
+        logger.info("📡 Fetching satellite image from Sentinel Hub (Sentinel-2)...")
         
         token = self._get_access_token()
         
@@ -243,7 +256,7 @@ class SentinelHubDataSource(DataSourceInterface):
             "evalscript": evalscript
         }
         
-        response = requests.post(url, json=payload, headers=headers)
+        response = requests.post(url, json=payload, headers=headers, timeout=_REQUEST_TIMEOUT)
         response.raise_for_status()
         
         # Parse PNG response
@@ -265,17 +278,28 @@ class SentinelHubDataSource(DataSourceInterface):
             'source': 'Sentinel Hub - Sentinel-2 L2A'
         }
         
-        print(f"✅ Satellite image fetched: {rgb_data.shape}")
+        logger.info(f"✅ Satellite image fetched: {rgb_data.shape}")
         
         return rgb_data, metadata
     
+    def has_credentials(self) -> bool:
+        """True if both halves of the OAuth2 client credential pair are set."""
+        return bool(self.client_id and self.client_secret)
+
     def test_connection(self) -> bool:
-        """Test Sentinel Hub API connection"""
+        """
+        Test Sentinel Hub connectivity.
+
+        Returns False immediately when credentials are missing, so building the
+        data source list does not make a doomed network round trip for every
+        unconfigured provider.
+        """
+        if not self.has_credentials():
+            return False
         try:
-            token = self._get_access_token()
-            return bool(token)
-        except Exception as e:
-            print(f"❌ Sentinel Hub connection test failed: {e}")
+            return bool(self._get_access_token())
+        except Exception as exc:  # noqa: BLE001 - reported through the return value
+            logger.info("Sentinel Hub connection test failed: %s", exc)
             return False
     
     def requires_setup(self) -> bool:
@@ -294,38 +318,11 @@ class SentinelHubDataSource(DataSourceInterface):
             "- Registration required: https://www.sentinel-hub.com/"
         )
     
-    def _calculate_image_size(self, bbox: list, resolution: int) -> Tuple[int, int]:
+    def _calculate_image_size(self, bbox: list, resolution: int) -> tuple[int, int]:
         """
-        Calculate image dimensions based on bbox and resolution
-        
-        Args:
-            bbox: [min_lon, min_lat, max_lon, max_lat]
-            resolution: Resolution in meters
-        
-        Returns:
-            (width, height) in pixels
+        Calculate raster dimensions for a bbox at a given ground resolution.
+
+        Clamped to 2500 px per side: Sentinel Hub's Processing API rejects
+        larger requests, and an oversized tile burns processing units fast.
         """
-        from math import cos, radians
-        
-        min_lon, min_lat, max_lon, max_lat = bbox
-        
-        # Approximate meters per degree at this latitude
-        lat_center = (min_lat + max_lat) / 2
-        meters_per_deg_lat = 111320  # ~constant
-        meters_per_deg_lon = 111320 * cos(radians(lat_center))
-        
-        # Calculate dimensions
-        width_meters = (max_lon - min_lon) * meters_per_deg_lon
-        height_meters = (max_lat - min_lat) * meters_per_deg_lat
-        
-        width = max(int(width_meters / resolution), 256)
-        height = max(int(height_meters / resolution), 256)
-        
-        # Limit max size to avoid quota issues
-        max_size = 2500
-        if width > max_size or height > max_size:
-            scale = min(max_size / width, max_size / height)
-            width = int(width * scale)
-            height = int(height * scale)
-        
-        return width, height
+        return pixel_dimensions(bbox, resolution, min_size=256, max_size=2500)

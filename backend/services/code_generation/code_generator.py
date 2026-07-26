@@ -1,9 +1,9 @@
 """AI Code Generator using qwen3-coder"""
 
 import json
-import re
-from typing import Optional, Dict, Any
 import os
+import re
+from typing import Any
 
 from services.ollama.client import OllamaClient
 
@@ -15,8 +15,8 @@ class CodeGenerator:
     
     def __init__(
         self,
-        model_name: Optional[str] = None,
-        ollama_client: Optional[OllamaClient] = None
+        model_name: str | None = None,
+        ollama_client: OllamaClient | None = None
     ):
         """
         Initialize code generator
@@ -39,7 +39,7 @@ class CodeGenerator:
         self,
         prompt: str,
         language: str = "json",
-        temperature: Optional[float] = None
+        temperature: float | None = None
     ) -> str:
         """
         Generate code using AI
@@ -79,7 +79,7 @@ class CodeGenerator:
             
         except Exception as e:
             print(f"❌ Code generation failed: {e}")
-            raise RuntimeError(f"Code generation error: {e}")
+            raise RuntimeError(f"Code generation error: {e}") from e
     
     def _clean_code_response(self, response: str, language: str) -> str:
         """
@@ -106,7 +106,7 @@ class CodeGenerator:
         # If no code blocks, return as-is (trimmed)
         return response.strip()
     
-    async def generate_json(self, prompt: str) -> Dict[str, Any]:
+    async def generate_json(self, prompt: str) -> dict[str, Any]:
         """
         Generate and parse JSON code
         
@@ -121,22 +121,22 @@ class CodeGenerator:
         try:
             # Try to parse as JSON
             parsed = json.loads(code)
-            print(f"✅ JSON parsed successfully")
+            print("✅ JSON parsed successfully")
             return parsed
             
         except json.JSONDecodeError as e:
             print(f"⚠️  JSON parse error: {e}")
-            print(f"   Attempting to fix JSON...")
+            print("   Attempting to fix JSON...")
             
             # Try to fix common issues
             fixed_code = self._fix_json(code)
             try:
                 parsed = json.loads(fixed_code)
-                print(f"✅ JSON fixed and parsed")
+                print("✅ JSON fixed and parsed")
                 return parsed
-            except:
-                print(f"❌ Could not fix JSON")
-                raise ValueError(f"Invalid JSON generated: {e}")
+            except json.JSONDecodeError as repair_error:
+                print("❌ Could not fix JSON")
+                raise ValueError(f"Invalid JSON generated: {e}") from repair_error
     
     def _fix_json(self, json_str: str) -> str:
         """Attempt to fix common JSON issues"""
@@ -171,7 +171,7 @@ class CodeGenerator:
                 raise ValueError("Generated code doesn't look like XML")
             code = '<?xml version="1.0" encoding="UTF-8"?>\n' + code
         
-        print(f"✅ XML generated")
+        print("✅ XML generated")
         return code
     
     async def generate_lua(self, prompt: str) -> str:
@@ -190,10 +190,10 @@ class CodeGenerator:
         if "function" not in code and "local" not in code:
             print("⚠️  Generated code doesn't contain Lua keywords")
         
-        print(f"✅ Lua script generated")
+        print("✅ Lua script generated")
         return code
     
-    async def validate_jbeam(self, jbeam_data: Dict[str, Any]) -> bool:
+    async def validate_jbeam(self, jbeam_data: dict[str, Any]) -> bool:
         """
         Validate JBeam structure
         
@@ -225,7 +225,7 @@ class CodeGenerator:
         if not (has_nodes or has_beams):
             return False
         
-        print(f"✅ JBeam validation passed")
+        print("✅ JBeam validation passed")
         return True
     
     async def close(self):

@@ -1,140 +1,122 @@
 """
-Test script to verify BeamNG.WorldForge project structure
+Structural checks.
+
+These guard the contracts other tooling depends on - the PyInstaller spec, the
+Docker images and the CI workflow all reference specific paths, and a rename
+that misses one of them fails at build time rather than at test time.
+
+Kept deliberately small: this file used to be the entire "test suite" and only
+asserted that files existed. The behaviour is covered by the other modules.
 """
 
-import os
+from __future__ import annotations
+
+import json
 from pathlib import Path
 
-# Project root
-PROJECT_ROOT = Path(__file__).parent.parent
+import pytest
 
-def test_backend_structure():
-    """Test that all backend files exist"""
-    backend = PROJECT_ROOT / "backend"
-    
-    required_files = [
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+BACKEND = PROJECT_ROOT / "backend"
+FRONTEND = PROJECT_ROOT / "frontend"
+
+
+@pytest.mark.parametrize(
+    "relative_path",
+    [
+        # Entry point referenced by beamng-worldforge.spec and both Dockerfiles.
         "main.py",
         "requirements.txt",
-        "pyproject.toml",
-        "api/__init__.py",
-        "api/routes/__init__.py",
+        "requirements-dev.txt",
+        # Packages listed in the spec's hiddenimports.
+        "core/config.py",
+        "core/geo.py",
+        "core/logging_config.py",
+        "core/paths.py",
         "api/routes/map_generation.py",
-        "models/__init__.py",
+        "api/routes/settings.py",
         "models/map_request.py",
         "models/terrain.py",
-        "services/__init__.py",
-        "services/gee/__init__.py",
-        "services/gee/client.py",
-        "services/terrain/__init__.py",
+        "models/user_settings.py",
+        "services/pipeline.py",
+        "services/jobs.py",
+        "services/settings_manager.py",
+        "services/data_sources/factory.py",
         "services/terrain/processor.py",
-        "services/export/__init__.py",
         "services/export/beamng_exporter.py",
-    ]
-    
-    for file_path in required_files:
-        full_path = backend / file_path
-        assert full_path.exists(), f"Missing: {file_path}"
-        print(f"[OK] {file_path}")
-    
-    print("\n[PASS] Backend structure: OK")
+    ],
+)
+def test_backend_module_exists(relative_path):
+    assert (BACKEND / relative_path).exists(), f"missing backend/{relative_path}"
 
-def test_frontend_structure():
-    """Test that all frontend files exist"""
-    frontend = PROJECT_ROOT / "frontend"
-    
-    required_files = [
+
+@pytest.mark.parametrize(
+    "relative_path",
+    [
         "package.json",
         "tsconfig.json",
         "vite.config.ts",
-        "index.html",
+        ".eslintrc.cjs",  # without it `npm run lint` fails outright
         "src/main.tsx",
         "src/App.tsx",
-        "src/index.css",
         "src/types.ts",
-        "src/components/Header.tsx",
-        "src/components/MapSelector.tsx",
-        "src/components/GenerationPanel.tsx",
+        "src/lib/stages.ts",
+        "src/hooks/useGenerationJob.ts",
         "src/services/api.ts",
+    ],
+)
+def test_frontend_file_exists(relative_path):
+    assert (FRONTEND / relative_path).exists(), f"missing frontend/{relative_path}"
+
+
+def test_frontend_declares_the_scripts_ci_runs():
+    scripts = json.loads((FRONTEND / "package.json").read_text())["scripts"]
+    assert {"build", "lint", "typecheck"} <= set(scripts)
+
+
+def test_no_encryption_key_is_tracked():
+    """
+    The Fernet key must never be committed.
+
+    It was, in every release up to 1.5.1, which made the encrypted settings
+    store worthless: anyone with the repository could decrypt it.
+    """
+    tracked_secrets = [
+        path
+        for path in (BACKEND / "config").glob("*")
+        if path.suffix in {".key", ".enc"} and not path.name.startswith(".")
     ]
-    
-    for file_path in required_files:
-        full_path = frontend / file_path
-        assert full_path.exists(), f"Missing: {file_path}"
-        print(f"[OK] {file_path}")
-    
-    print("\n[PASS] Frontend structure: OK")
+    gitignore = (PROJECT_ROOT / ".gitignore").read_text()
 
-def test_documentation():
-    """Test that documentation files exist"""
-    docs = PROJECT_ROOT / "docs"
-    
-    required_files = [
-        "SETUP.md",
-        "ARCHITECTURE.md",
-        "API.md",
+    assert "*.key" in gitignore, ".gitignore must exclude *.key"
+    assert "*.enc" in gitignore, ".gitignore must exclude *.enc"
+
+    # Any key present locally must be ignored, never staged.
+    for path in tracked_secrets:
+        assert path.name in gitignore or "*.key" in gitignore
+
+
+def test_gdal_is_not_a_pip_dependency():
+    """
+    `pip install GDAL` needs a matching system libgdal and fails on a clean
+    machine, which made the documented install command unusable. rasterio's
+    wheels bundle GDAL already.
+    """
+    requirements = (BACKEND / "requirements.txt").read_text().lower()
+    dependency_lines = [
+        line.strip()
+        for line in requirements.splitlines()
+        if line.strip() and not line.strip().startswith("#")
     ]
-    
-    for file_path in required_files:
-        full_path = docs / file_path
-        assert full_path.exists(), f"Missing: {file_path}"
-        print(f"[OK] {file_path}")
-    
-    # Check README
-    readme = PROJECT_ROOT / "README.md"
-    assert readme.exists(), "Missing README.md"
-    print(f"[OK] README.md")
-    
-    print("\n[PASS] Documentation: OK")
+    assert not any(line.startswith("gdal") for line in dependency_lines)
 
-def test_docker_files():
-    """Test that Docker files exist"""
-    required_files = [
-        "docker-compose.yml",
-        "backend/Dockerfile",
-        "frontend/Dockerfile",
-    ]
-    
-    for file_path in required_files:
-        full_path = PROJECT_ROOT / file_path
-        assert full_path.exists(), f"Missing: {file_path}"
-        print(f"[OK] {file_path}")
-    
-    print("\n[PASS] Docker files: OK")
 
-def main():
-    print("=" * 60)
-    print("BeamNG.WorldForge - Project Structure Test")
-    print("=" * 60)
-    print()
-    
-    try:
-        test_backend_structure()
-        print()
-        test_frontend_structure()
-        print()
-        test_documentation()
-        print()
-        test_docker_files()
-        
-        print()
-        print("=" * 60)
-        print("SUCCESS: ALL TESTS PASSED!")
-        print("=" * 60)
-        print()
-        print("Next steps:")
-        print("1. Set up Google Earth Engine credentials")
-        print("2. Install backend dependencies: cd backend && pip install -r requirements.txt")
-        print("3. Install frontend dependencies: cd frontend && pnpm install")
-        print("4. Run backend: cd backend && uvicorn main:app --reload")
-        print("5. Run frontend: cd frontend && pnpm dev")
-        print("6. Test in browser: http://localhost:5173")
-        
-        return 0
-        
-    except AssertionError as e:
-        print(f"\nERROR: TEST FAILED: {e}")
-        return 1
+def test_docker_files_exist():
+    for relative_path in ("docker-compose.yml", "backend/Dockerfile", "frontend/Dockerfile"):
+        assert (PROJECT_ROOT / relative_path).exists(), f"missing {relative_path}"
 
-if __name__ == "__main__":
-    exit(main())
 
+def test_documentation_exists():
+    for name in ("SETUP.md", "ARCHITECTURE.md", "API.md"):
+        assert (PROJECT_ROOT / "docs" / name).exists(), f"missing docs/{name}"
+    assert (PROJECT_ROOT / "README.md").exists()

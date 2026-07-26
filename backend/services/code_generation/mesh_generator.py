@@ -1,9 +1,8 @@
 """Procedural 3D building mesh generation"""
 
 import xml.etree.ElementTree as ET
-from typing import List, Tuple, Optional, Dict, Any
 from pathlib import Path
-import numpy as np
+from typing import Any
 
 from .code_generator import CodeGenerator
 from .prompts import get_building_mesh_prompt
@@ -14,7 +13,7 @@ class MeshGenerator:
     Generate procedural 3D building meshes
     """
     
-    def __init__(self, code_generator: Optional[CodeGenerator] = None):
+    def __init__(self, code_generator: CodeGenerator | None = None):
         """
         Initialize mesh generator
         
@@ -22,12 +21,12 @@ class MeshGenerator:
             code_generator: CodeGenerator instance (creates new if None)
         """
         self.code_gen = code_generator or CodeGenerator()
-        print(f"🏢 Mesh Generator initialized")
+        print("🏢 Mesh Generator initialized")
     
     async def generate_building_meshes(
         self,
-        buildings_data: List[Dict[str, Any]]
-    ) -> List[str]:
+        buildings_data: list[dict[str, Any]]
+    ) -> list[str]:
         """
         Generate meshes for multiple buildings
         
@@ -65,7 +64,7 @@ class MeshGenerator:
                         building_id=idx
                     )
                     meshes.append(mesh_dae)
-                except:
+                except Exception:  # noqa: BLE001 - skip a building we cannot mesh
                     continue
         
         print(f"✅ Building meshes generated: {len(meshes)}")
@@ -73,7 +72,7 @@ class MeshGenerator:
     
     async def generate_single_building(
         self,
-        footprint: List[Tuple[float, float]],
+        footprint: list[tuple[float, float]],
         height: float,
         building_type: str = "residential",
         building_id: int = 1
@@ -118,7 +117,7 @@ class MeshGenerator:
             if self._validate_dae(dae_xml):
                 return dae_xml
             else:
-                print(f"⚠️  Generated DAE invalid, using fallback")
+                print("⚠️  Generated DAE invalid, using fallback")
                 return self._create_fallback_mesh(footprint, height, building_id)
                 
         except Exception as e:
@@ -127,7 +126,7 @@ class MeshGenerator:
     
     def _create_fallback_mesh(
         self,
-        footprint: List[Tuple[float, float]],
+        footprint: list[tuple[float, float]],
         height: float,
         building_id: int
     ) -> str:
@@ -142,7 +141,7 @@ class MeshGenerator:
         Returns:
             DAE XML string
         """
-        print(f"   Creating procedural mesh fallback...")
+        print("   Creating procedural mesh fallback...")
         
         # Simplify footprint if too complex
         if len(footprint) > 8:
@@ -200,8 +199,8 @@ class MeshGenerator:
     
     def _create_dae_xml(
         self,
-        vertices: List[Tuple[float, float, float]],
-        triangles: List[Tuple[int, int, int]],
+        vertices: list[tuple[float, float, float]],
+        triangles: list[tuple[int, int, int]],
         building_id: int
     ) -> str:
         """
@@ -300,7 +299,7 @@ class MeshGenerator:
             if geom_lib is None:
                 return False
             
-            print(f"✅ DAE validation passed")
+            print("✅ DAE validation passed")
             return True
             
         except Exception as e:

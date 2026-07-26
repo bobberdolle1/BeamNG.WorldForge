@@ -4,15 +4,15 @@ Tests Ollama client and AI segmentation without full pipeline
 """
 
 import asyncio
+
 import numpy as np
-from pathlib import Path
 
 # Test imports
 try:
+    from services.ai_segmentation.mask_generator import MaskGenerator
+    from services.ai_segmentation.segmentor import AISegmentor  # noqa: F401
     from services.ollama.client import OllamaClient
     from services.ollama.vision_model import VisionModel
-    from services.ai_segmentation.segmentor import AISegmentor
-    from services.ai_segmentation.mask_generator import MaskGenerator
     from services.vector_extraction.contour_extractor import ContourExtractor
     from services.vector_extraction.vectorizer import Vectorizer
     print("✅ All AI modules imported successfully")
@@ -32,7 +32,7 @@ async def test_ollama_connection():
         client = OllamaClient()
         models = await client.list_models()
         
-        print(f"✅ Connected to Ollama")
+        print("✅ Connected to Ollama")
         print(f"   Available models: {len(models)}")
         for model in models[:3]:  # Show first 3
             print(f"   - {model.get('name', 'unknown')}")
@@ -65,7 +65,7 @@ async def test_vision_model():
             temperature=0.1
         )
         
-        print(f"✅ Vision model responded")
+        print("✅ Vision model responded")
         print(f"   Response: {response[:100]}...")
         
         await model.close()
@@ -86,7 +86,7 @@ async def test_segmentation_pipeline():
     try:
         # Create mock satellite image (256x256 RGB)
         print("Creating mock satellite image...")
-        mock_image = np.random.randint(50, 200, (256, 256, 3), dtype=np.uint8)
+        np.random.randint(50, 200, (256, 256, 3), dtype=np.uint8)
         
         # Mock bbox (San Francisco area)
         bbox = [-122.44, 37.77, -122.40, 37.80]  # [min_lon, min_lat, max_lon, max_lat]

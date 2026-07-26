@@ -1,8 +1,8 @@
 """Build road network in BeamNG.drive format"""
 
 import json
-from typing import List, Dict, Any
 from pathlib import Path
+from typing import Any
 
 
 class RoadBuilder:
@@ -11,12 +11,12 @@ class RoadBuilder:
     """
     
     def __init__(self):
-        print(f"🛣️  Road Builder initialized")
+        print("🛣️  Road Builder initialized")
     
     def create_decal_roads(
         self,
-        roads_vector_data: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        roads_vector_data: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """
         Create decalRoad.json from vector road data
         
@@ -45,9 +45,9 @@ class RoadBuilder:
     
     def _create_single_decal_road(
         self,
-        road_data: Dict[str, Any],
+        road_data: dict[str, Any],
         road_id: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Create single decal road entry
         
@@ -108,7 +108,7 @@ class RoadBuilder:
         
         return decal_road
     
-    def save_decal_roads(self, decal_roads: Dict[str, Any], output_path: Path):
+    def save_decal_roads(self, decal_roads: dict[str, Any], output_path: Path):
         """
         Save decalRoad.json
         

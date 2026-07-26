@@ -1,9 +1,10 @@
 """Generate segmentation masks from AI detection results"""
 
-import numpy as np
-from typing import Dict, Any, List, Tuple, Optional
-from PIL import Image, ImageDraw
+from typing import Any
+
 import cv2
+import numpy as np
+from PIL import Image, ImageDraw
 
 
 class MaskGenerator:
@@ -11,7 +12,7 @@ class MaskGenerator:
     Generate pixel-level segmentation masks from AI detection results
     """
     
-    def __init__(self, image_size: Tuple[int, int]):
+    def __init__(self, image_size: tuple[int, int]):
         """
         Initialize mask generator
         
@@ -23,9 +24,9 @@ class MaskGenerator:
     
     def generate_masks(
         self,
-        segmentation_results: Dict[str, List[Dict[str, Any]]],
-        bbox: List[float]
-    ) -> Dict[str, np.ndarray]:
+        segmentation_results: dict[str, list[dict[str, Any]]],
+        bbox: list[float]
+    ) -> dict[str, np.ndarray]:
         """
         Generate binary masks for each segmentation class
         
@@ -48,8 +49,8 @@ class MaskGenerator:
     
     def _create_class_mask(
         self,
-        features: List[Dict[str, Any]],
-        bbox: List[float],
+        features: list[dict[str, Any]],
+        bbox: list[float],
         class_name: str
     ) -> np.ndarray:
         """
@@ -87,8 +88,8 @@ class MaskGenerator:
     def _draw_road(
         self,
         draw: ImageDraw.Draw,
-        road: Dict[str, Any],
-        bbox: List[float]
+        road: dict[str, Any],
+        bbox: list[float]
     ):
         """Draw road on mask"""
         # Get centerline coordinates
@@ -118,8 +119,8 @@ class MaskGenerator:
     def _draw_building(
         self,
         draw: ImageDraw.Draw,
-        building: Dict[str, Any],
-        bbox: List[float]
+        building: dict[str, Any],
+        bbox: list[float]
     ):
         """Draw building footprint on mask"""
         # Get footprint polygon
@@ -140,8 +141,8 @@ class MaskGenerator:
     def _draw_polygon(
         self,
         draw: ImageDraw.Draw,
-        feature: Dict[str, Any],
-        bbox: List[float]
+        feature: dict[str, Any],
+        bbox: list[float]
     ):
         """Draw generic polygon feature on mask"""
         # Try different possible keys for polygon coordinates
@@ -166,9 +167,9 @@ class MaskGenerator:
     
     def _geo_to_pixel(
         self,
-        geo_coord: List[float],
-        bbox: List[float]
-    ) -> Tuple[int, int]:
+        geo_coord: list[float],
+        bbox: list[float]
+    ) -> tuple[int, int]:
         """
         Convert geographic coordinates to pixel coordinates
         
@@ -228,7 +229,7 @@ class MaskGenerator:
     
     def save_masks(
         self,
-        masks: Dict[str, np.ndarray],
+        masks: dict[str, np.ndarray],
         output_dir: str
     ):
         """
@@ -250,8 +251,8 @@ class MaskGenerator:
     
     def create_colored_overlay(
         self,
-        masks: Dict[str, np.ndarray],
-        base_image: Optional[np.ndarray] = None,
+        masks: dict[str, np.ndarray],
+        base_image: np.ndarray | None = None,
         alpha: float = 0.5
     ) -> np.ndarray:
         """

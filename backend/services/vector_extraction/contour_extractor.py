@@ -1,8 +1,9 @@
 """Extract contours from segmentation masks"""
 
-import numpy as np
+from typing import Any
+
 import cv2
-from typing import List, Tuple, Dict, Any
+import numpy as np
 
 
 class ContourExtractor:
@@ -22,7 +23,7 @@ class ContourExtractor:
         self,
         mask: np.ndarray,
         min_area: int = 100
-    ) -> List[np.ndarray]:
+    ) -> list[np.ndarray]:
         """
         Extract contours from binary mask
         
@@ -55,8 +56,8 @@ class ContourExtractor:
     
     def contours_to_polygons(
         self,
-        contours: List[np.ndarray]
-    ) -> List[List[Tuple[int, int]]]:
+        contours: list[np.ndarray]
+    ) -> list[list[tuple[int, int]]]:
         """
         Convert OpenCV contours to simple polygon format
         
@@ -83,7 +84,7 @@ class ContourExtractor:
         self,
         mask: np.ndarray,
         min_length: int = 50
-    ) -> List[np.ndarray]:
+    ) -> list[np.ndarray]:
         """
         Extract centerlines from road/path masks using skeletonization
         
@@ -130,7 +131,7 @@ class ContourExtractor:
         self,
         mask: np.ndarray,
         min_area: int = 100
-    ) -> List[Tuple[Tuple[int, int], Tuple[int, int], float]]:
+    ) -> list[tuple[tuple[int, int], tuple[int, int], float]]:
         """
         Extract minimum area rectangles from mask (good for buildings)
         
@@ -153,8 +154,8 @@ class ContourExtractor:
     
     def rectangle_to_polygon(
         self,
-        rect: Tuple[Tuple[int, int], Tuple[int, int], float]
-    ) -> List[Tuple[int, int]]:
+        rect: tuple[tuple[int, int], tuple[int, int], float]
+    ) -> list[tuple[int, int]]:
         """
         Convert rectangle to 4-point polygon
         
@@ -171,8 +172,8 @@ class ContourExtractor:
     
     def get_statistics(
         self,
-        contours: List[np.ndarray]
-    ) -> Dict[str, Any]:
+        contours: list[np.ndarray]
+    ) -> dict[str, Any]:
         """
         Get statistics about extracted contours
         

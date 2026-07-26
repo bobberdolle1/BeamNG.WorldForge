@@ -1,13 +1,14 @@
 """Vectorize detected features into geographic coordinates"""
 
+from typing import Any
+
 import numpy as np
-from typing import List, Tuple, Dict, Any
 
 
 class Vectorizer:
     """Convert pixel coordinates to geographic coordinates"""
     
-    def __init__(self, bbox: List[float], image_size: Tuple[int, int]):
+    def __init__(self, bbox: list[float], image_size: tuple[int, int]):
         """
         Initialize vectorizer
         
@@ -21,11 +22,11 @@ class Vectorizer:
         self.min_lon, self.min_lat, self.max_lon, self.max_lat = bbox
         self.height, self.width = image_size
         
-        print(f"🗺️  Vectorizer initialized")
+        print("🗺️  Vectorizer initialized")
         print(f"   BBox: {bbox}")
         print(f"   Image size: {image_size}")
     
-    def pixel_to_geo(self, pixel: Tuple[int, int]) -> Tuple[float, float]:
+    def pixel_to_geo(self, pixel: tuple[int, int]) -> tuple[float, float]:
         """
         Convert pixel coordinates to geographic coordinates
         
@@ -49,8 +50,8 @@ class Vectorizer:
     
     def polygon_to_geo(
         self,
-        polygon: List[Tuple[int, int]]
-    ) -> List[Tuple[float, float]]:
+        polygon: list[tuple[int, int]]
+    ) -> list[tuple[float, float]]:
         """
         Convert polygon from pixel to geographic coordinates
         
@@ -65,7 +66,7 @@ class Vectorizer:
     def contour_to_geo(
         self,
         contour: np.ndarray
-    ) -> List[Tuple[float, float]]:
+    ) -> list[tuple[float, float]]:
         """
         Convert OpenCV contour to geographic coordinates
         
@@ -76,10 +77,7 @@ class Vectorizer:
             List of (latitude, longitude) coordinates
         """
         # Reshape if needed
-        if len(contour.shape) == 3:
-            points = contour.reshape(-1, 2)
-        else:
-            points = contour
+        points = contour.reshape(-1, 2) if len(contour.shape) == 3 else contour
         
         # Convert each point
         geo_points = []
@@ -91,9 +89,9 @@ class Vectorizer:
     
     def vectorize_road_network(
         self,
-        centerlines: List[np.ndarray],
+        centerlines: list[np.ndarray],
         width_pixels: int = 5
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Vectorize road centerlines to geographic coordinates
         
@@ -128,9 +126,9 @@ class Vectorizer:
     
     def vectorize_buildings(
         self,
-        polygons: List[List[Tuple[int, int]]],
+        polygons: list[list[tuple[int, int]]],
         default_height: float = 10.0
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Vectorize building footprints to geographic coordinates
         
@@ -159,9 +157,9 @@ class Vectorizer:
     
     def vectorize_area_features(
         self,
-        polygons: List[List[Tuple[int, int]]],
+        polygons: list[list[tuple[int, int]]],
         feature_type: str
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Vectorize area features (water, forest, parking) to geographic coordinates
         
@@ -198,7 +196,7 @@ class Vectorizer:
         
         return features
     
-    def _polygon_area(self, polygon: List[Tuple[int, int]]) -> float:
+    def _polygon_area(self, polygon: list[tuple[int, int]]) -> float:
         """
         Calculate polygon area using shoelace formula
         
@@ -222,9 +220,9 @@ class Vectorizer:
     
     def create_geojson(
         self,
-        features: List[Dict[str, Any]],
+        features: list[dict[str, Any]],
         feature_type: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Create GeoJSON from vectorized features
         

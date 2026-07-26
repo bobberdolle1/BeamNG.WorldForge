@@ -1,3 +1,8 @@
+# Local development stack.
+#
+# Backend on :8000, Vite dev server on :5173 with /api proxied to the backend.
+# Open http://localhost:5173
+
 services:
   backend:
     build:
@@ -7,21 +12,34 @@ services:
       - "8000:8000"
     volumes:
       - ./backend:/app
-      - ./backend/config:/app/config
-      - ./backend/output:/app/output
-      - ./backend/temp:/app/temp
+      # Named volumes for generated data, so a rebuild does not wipe finished
+      # maps or the encrypted settings file, and so container-created files do
+      # not appear in the working tree owned by a different uid.
+      - worldforge-config:/app/config
+      - worldforge-output:/app/output
+      - worldforge-temp:/app/temp
     environment:
-      - GEE_SERVICE_ACCOUNT_KEY=config/gee-key.json
-      - GEE_PROJECT_ID=${GEE_PROJECT_ID}
-      - API_HOST=0.0.0.0
-      - API_PORT=8000
-      - API_RELOAD=true
-      - CORS_ORIGINS=http://localhost:5173,http://localhost:3000
+      API_HOST: 0.0.0.0
+      API_PORT: "8000"
+      LOG_LEVEL: INFO
+      # The Vite dev server proxies /api server-side so requests arrive
+      # same-origin; these cover a browser talking to :8000 directly.
+      CORS_ORIGINS: http://localhost:5173,http://localhost:3000
+      GEE_SERVICE_ACCOUNT_KEY: config/gee-key.json
     env_file:
-      - ./backend/.env
+      # `required: false` so `docker compose up` works before anyone has created
+      # a .env file - previously a missing file aborted the whole stack.
+      - path: ./backend/.env
+        required: false
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     networks:
-      - worldforge-network
+      - worldforge
 
   frontend:
     build:
@@ -33,14 +51,21 @@ services:
       - ./frontend:/app
       - /app/node_modules
     environment:
-      - VITE_API_URL=http://backend:8000
+      VITE_API_URL: http://backend:8000
     command: npm run dev -- --host
     depends_on:
-      - backend
+      # Wait for the API to answer /api/health rather than merely for the
+      # container to exist, so the first page load is not a proxy error.
+      backend:
+        condition: service_healthy
     networks:
-      - worldforge-network
+      - worldforge
+
+volumes:
+  worldforge-config:
+  worldforge-output:
+  worldforge-temp:
 
 networks:
-  worldforge-network:
+  worldforge:
     driver: bridge
-

@@ -1,13 +1,11 @@
 """Google Earth Engine client for fetching satellite data"""
 
-import ee
 import os
-import numpy as np
 from pathlib import Path
-from typing import Tuple, Optional
+
+import ee
+import numpy as np
 import requests
-from io import BytesIO
-from PIL import Image
 
 
 def initialize_gee():
@@ -34,14 +32,14 @@ def initialize_gee():
             raise RuntimeError(
                 f"Failed to initialize Google Earth Engine. "
                 f"Please ensure you have valid credentials. Error: {e}"
-            )
+            ) from e
 
 
 def get_dem_data(
     bbox: list,
     resolution: int = 30,
     dataset: str = "USGS/SRTMGL1_003"
-) -> Tuple[np.ndarray, dict]:
+) -> tuple[np.ndarray, dict]:
     """
     Fetch Digital Elevation Model (DEM) data from Google Earth Engine
     
@@ -83,17 +81,16 @@ def get_dem_data(
     # For now, return raw bytes and metadata
     from rasterio.io import MemoryFile
     
-    with MemoryFile(response.content) as memfile:
-        with memfile.open() as dataset_reader:
-            elevation_data = dataset_reader.read(1)  # Read first band
-            metadata = {
-                'bounds': dataset_reader.bounds,
-                'crs': str(dataset_reader.crs),
-                'transform': dataset_reader.transform,
-                'width': dataset_reader.width,
-                'height': dataset_reader.height,
-                'nodata': dataset_reader.nodata
-            }
+    with MemoryFile(response.content) as memfile, memfile.open() as dataset_reader:
+        elevation_data = dataset_reader.read(1)  # Read first band
+        metadata = {
+            'bounds': dataset_reader.bounds,
+            'crs': str(dataset_reader.crs),
+            'transform': dataset_reader.transform,
+            'width': dataset_reader.width,
+            'height': dataset_reader.height,
+            'nodata': dataset_reader.nodata
+        }
     
     print(f"✅ DEM data fetched: {elevation_data.shape}, "
           f"range: [{np.min(elevation_data):.1f}, {np.max(elevation_data):.1f}]m")
@@ -105,7 +102,7 @@ def get_satellite_image(
     bbox: list,
     resolution: int = 10,
     dataset: str = "COPERNICUS/S2_SR"
-) -> Tuple[np.ndarray, dict]:
+) -> tuple[np.ndarray, dict]:
     """
     Fetch RGB satellite image from Google Earth Engine
     
@@ -157,19 +154,18 @@ def get_satellite_image(
     # Load as numpy array
     from rasterio.io import MemoryFile
     
-    with MemoryFile(response.content) as memfile:
-        with memfile.open() as dataset_reader:
-            # Read RGB bands
-            rgb_data = dataset_reader.read([1, 2, 3])  # Shape: (3, H, W)
-            rgb_data = np.transpose(rgb_data, (1, 2, 0))  # Shape: (H, W, 3)
-            
-            metadata = {
-                'bounds': dataset_reader.bounds,
-                'crs': str(dataset_reader.crs),
-                'transform': dataset_reader.transform,
-                'width': dataset_reader.width,
-                'height': dataset_reader.height
-            }
+    with MemoryFile(response.content) as memfile, memfile.open() as dataset_reader:
+        # Read RGB bands
+        rgb_data = dataset_reader.read([1, 2, 3])  # Shape: (3, H, W)
+        rgb_data = np.transpose(rgb_data, (1, 2, 0))  # Shape: (H, W, 3)
+        
+        metadata = {
+            'bounds': dataset_reader.bounds,
+            'crs': str(dataset_reader.crs),
+            'transform': dataset_reader.transform,
+            'width': dataset_reader.width,
+            'height': dataset_reader.height
+        }
     
     print(f"✅ Satellite image fetched: {rgb_data.shape}")
     

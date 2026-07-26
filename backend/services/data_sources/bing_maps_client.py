@@ -9,14 +9,18 @@ Requires Bing Maps API key (free tier available)
 """
 
 import os
+from io import BytesIO
+from math import atan, cos, exp, log, pi, sin
+
 import numpy as np
 import requests
-from typing import Tuple, Optional
 from PIL import Image
-from io import BytesIO
-from math import pi, sin, cos, log, exp, atan, floor, ceil
 
-from .base import DataSourceInterface, DataSourceType
+from core.logging_config import get_logger
+
+from .base import Capability, DataSourceInterface
+
+logger = get_logger(__name__)
 
 
 class BingMapsDataSource(DataSourceInterface):
@@ -34,8 +38,11 @@ class BingMapsDataSource(DataSourceInterface):
     
     BASE_URL = "https://dev.virtualearth.net/REST/v1/Imagery"
     TILE_SIZE = 256  # Bing Maps uses 256x256 tiles
+
+    #: Imagery only. Note: Microsoft retired the Bing Maps APIs - prefer Azure Maps.
+    capabilities = frozenset({Capability.IMAGERY})
     
-    def __init__(self, config: Optional[dict] = None):
+    def __init__(self, config: dict | None = None):
         super().__init__(config)
         
         # Get API key from config or environment
@@ -45,7 +52,7 @@ class BingMapsDataSource(DataSourceInterface):
         self,
         bbox: list,
         resolution: int = 30
-    ) -> Tuple[np.ndarray, dict]:
+    ) -> tuple[np.ndarray, dict]:
         """
         Bing Maps does not provide DEM data
         
@@ -60,7 +67,7 @@ class BingMapsDataSource(DataSourceInterface):
         self,
         bbox: list,
         resolution: int = 10
-    ) -> Tuple[np.ndarray, dict]:
+    ) -> tuple[np.ndarray, dict]:
         """
         Fetch satellite imagery from Bing Maps
         
@@ -73,7 +80,7 @@ class BingMapsDataSource(DataSourceInterface):
                 "Get free key at: https://www.bingmapsportal.com/"
             )
         
-        print(f"📡 Fetching satellite image from Bing Maps...")
+        print("📡 Fetching satellite image from Bing Maps...")
         
         min_lon, min_lat, max_lon, max_lat = bbox
         
@@ -163,7 +170,7 @@ class BingMapsDataSource(DataSourceInterface):
             "⚠️  Note: Does not provide DEM data (use with OpenTopography/Sentinel Hub for terrain)"
         )
     
-    def _lat_lon_to_tile_xy(self, lat: float, lon: float, zoom: int) -> Tuple[int, int]:
+    def _lat_lon_to_tile_xy(self, lat: float, lon: float, zoom: int) -> tuple[int, int]:
         """
         Convert lat/lon to tile coordinates at given zoom level
         
@@ -177,7 +184,7 @@ class BingMapsDataSource(DataSourceInterface):
         
         return x_tile, y_tile
     
-    def _tile_xy_to_lat_lon(self, x: int, y: int, zoom: int) -> Tuple[float, float]:
+    def _tile_xy_to_lat_lon(self, x: int, y: int, zoom: int) -> tuple[float, float]:
         """Convert tile coordinates to lat/lon"""
         n = 2.0 ** zoom
         
@@ -284,8 +291,9 @@ class BingMapsDataSource(DataSourceInterface):
         # Get tile grid bounds
         xs = [t[0] for t in tiles]
         ys = [t[1] for t in tiles]
-        min_tile_x, max_tile_x = min(xs), max(xs)
-        min_tile_y, max_tile_y = min(ys), max(ys)
+        # Only the grid origin is needed; pixel offsets are computed from it.
+        min_tile_x = min(xs)
+        min_tile_y = min(ys)
         
         # Convert bbox to pixel coordinates within the stitched image
         def lon_to_pixel_x(lon):
@@ -367,5 +375,5 @@ def sinh(x):
 
 
 def tan(x):
-    from math import sin, cos
+    from math import cos
     return sin(x) / cos(x)

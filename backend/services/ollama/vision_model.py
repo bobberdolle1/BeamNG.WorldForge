@@ -1,10 +1,10 @@
 """Vision model interface for Ollama"""
 
-import numpy as np
-from typing import Optional, Dict, Any, List
-from pathlib import Path
 import json
 import re
+from typing import Any
+
+import numpy as np
 
 from .client import OllamaClient
 
@@ -15,7 +15,7 @@ class VisionModel:
     def __init__(
         self,
         model_name: str = "qwen3-vl:235b-cloud",
-        client: Optional[OllamaClient] = None
+        client: OllamaClient | None = None
     ):
         """
         Initialize vision model
@@ -67,8 +67,8 @@ class VisionModel:
     async def segment_satellite_image(
         self,
         image: np.ndarray,
-        classes: Optional[List[str]] = None
-    ) -> Dict[str, Any]:
+        classes: list[str] | None = None
+    ) -> dict[str, Any]:
         """
         Segment satellite image into different classes
         
@@ -84,7 +84,7 @@ class VisionModel:
         
         prompt = self._create_segmentation_prompt(classes)
         
-        print(f"🔍 Analyzing satellite image for segmentation...")
+        print("🔍 Analyzing satellite image for segmentation...")
         print(f"   Image size: {image.shape}")
         print(f"   Classes: {', '.join(classes)}")
         
@@ -98,13 +98,13 @@ class VisionModel:
         # Parse response into structured data
         segmentation_data = self._parse_segmentation_response(response_text, classes)
         
-        print(f"✅ Segmentation complete")
+        print("✅ Segmentation complete")
         for cls, features in segmentation_data.items():
             print(f"   {cls}: {len(features)} features detected")
         
         return segmentation_data
     
-    async def extract_roads(self, image: np.ndarray) -> List[Dict[str, Any]]:
+    async def extract_roads(self, image: np.ndarray) -> list[dict[str, Any]]:
         """
         Extract road network from satellite image
         
@@ -144,7 +144,7 @@ Be precise with coordinates. Only include clearly visible roads.
         
         return roads if isinstance(roads, list) else []
     
-    async def extract_buildings(self, image: np.ndarray) -> List[Dict[str, Any]]:
+    async def extract_buildings(self, image: np.ndarray) -> list[dict[str, Any]]:
         """
         Extract building footprints from satellite image
         
@@ -182,7 +182,7 @@ Only include clearly visible buildings with well-defined boundaries.
         
         return buildings if isinstance(buildings, list) else []
     
-    def _create_segmentation_prompt(self, classes: List[str]) -> str:
+    def _create_segmentation_prompt(self, classes: list[str]) -> str:
         """Create prompt for image segmentation"""
         classes_str = ", ".join(classes)
         
@@ -219,8 +219,8 @@ Be precise and only include features you can clearly identify.
     def _parse_segmentation_response(
         self,
         response: str,
-        classes: List[str]
-    ) -> Dict[str, List[Dict[str, Any]]]:
+        classes: list[str]
+    ) -> dict[str, list[dict[str, Any]]]:
         """
         Parse model response into segmentation data
         
@@ -274,7 +274,7 @@ Be precise and only include features you can clearly identify.
                     continue
         
         # Could not extract JSON
-        print(f"⚠️  Could not extract JSON from response")
+        print("⚠️  Could not extract JSON from response")
         return None
     
     async def close(self):

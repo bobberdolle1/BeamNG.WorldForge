@@ -1,0 +1,11 @@
+# Development and CI dependencies.
+-r requirements.txt
+
+pytest==8.3.4
+pytest-asyncio==0.25.0
+pytest-cov==6.0.0
+ruff==0.8.6
+
+# Needed to build the standalone executable (not a runtime dependency, so it
+# no longer ships in requirements.txt and bloats the Docker image).
+pyinstaller==6.11.1

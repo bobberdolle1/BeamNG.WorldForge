@@ -2,7 +2,7 @@
   "app": {
     "title": "BeamNG.WorldForge",
     "subtitle": "Generate Maps from Satellite Data",
-    "version": "v1.5.0"
+    "version": "v1.6.0"
   },
   "nav": {
     "map": "Map",
@@ -120,7 +120,10 @@
       "generatingRoads": "Generating roads",
       "generatingBuildings": "Generating buildings",
       "generatingCode": "Generating JBeam code",
-      "packaging": "Packaging map"
+      "packaging": "Packaging map",
+      "generatingHeightmap": "Generating heightmap",
+      "renderingPreview": "Rendering preview",
+      "extractingVectors": "Extracting vector geometry"
     },
     "results": {
       "roadsDetected": "Roads detected: {{count}}",
@@ -128,7 +131,14 @@
       "downloadMap": "Download Map (.zip)",
       "viewPreview": "View Preview",
       "preview3D": "🎮 3D Preview"
-    }
+    },
+    "areaTooLarge": "Selected area is too large",
+    "selectRegionFirst": "Select a region on the map first",
+    "enterMapName": "Enter a map name",
+    "dataSourceUnavailable": "Not configured",
+    "regionSize": "Region: {{area}} km²",
+    "aiUnavailable": "AI features were unavailable for this run",
+    "startOver": "Start over"
   },
   "preview": {
     "title": "3D Preview",
