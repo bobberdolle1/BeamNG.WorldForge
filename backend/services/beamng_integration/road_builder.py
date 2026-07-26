@@ -93,7 +93,7 @@ class RoadBuilder:
 
         nodes = []
         for point in centerline:
-            if not isinstance(point, (list, tuple)) or len(point) < 2:
+            if not isinstance(point, list | tuple) or len(point) < 2:
                 continue
             lat, lon = float(point[0]), float(point[1])
             x, y = self.projection.to_world(lat, lon)

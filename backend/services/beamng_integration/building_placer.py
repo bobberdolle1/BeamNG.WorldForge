@@ -75,7 +75,7 @@ class BuildingPlacer:
     ) -> dict[str, Any] | None:
         footprint = [
             point for point in (building.get("footprint") or [])
-            if isinstance(point, (list, tuple)) and len(point) >= 2
+            if isinstance(point, list | tuple) and len(point) >= 2
         ]
         if len(footprint) < MIN_FOOTPRINT_POINTS:
             return None

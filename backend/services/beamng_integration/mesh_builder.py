@@ -69,7 +69,7 @@ class MeshBuilder:
         """
         raw_footprint = [
             point for point in (building.get("footprint") or [])
-            if isinstance(point, (list, tuple)) and len(point) >= 2
+            if isinstance(point, list | tuple) and len(point) >= 2
         ]
         if len(raw_footprint) < 3:
             return None
