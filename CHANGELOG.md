@@ -5,6 +5,45 @@ All notable changes to BeamNG.WorldForge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.1] - 2026-07-26
+
+### Fixed
+
+- **The Settings page was broken by the 1.6.0 API change.** Moving credential
+  validation from a query parameter to a request body was not mirrored in
+  `SettingsPage.tsx`, so every "Verify" click returned 422. Three further
+  defects on the same page:
+  - Sentinel Hub sent the Client ID and Client Secret as two separate
+    single-value requests, so the OAuth2 client-credentials exchange could
+    never succeed. They are now verified as a pair.
+  - The Google Earth Engine field offered a Verify button for a `gee` service
+    the backend has never implemented; it returned 400 on every click. The
+    button is gone - a GCP project id is not a credential.
+  - Masked placeholders (`***abcd`) were rendered as editable input values, so
+    "configured" was indistinguishable from a key that literally reads
+    `***abcd`. Stored keys now show a "configured" badge with an empty input.
+- Saving now sends only the keys that were actually edited, so a
+  preferences-only change cannot touch stored credentials.
+- The job's map name survives status polls instead of being dropped if a
+  response omits it.
+
+### Added
+
+- **Frontend test suite (Vitest + Testing Library), 38 tests** covering the
+  stage-progress maths, the polling hook's lifecycle, API error normalisation,
+  and the settings page's request shapes. Wired into CI.
+- **API contract test** asserting every path and method the frontend calls
+  exists in the backend's OpenAPI schema, plus checks that credentials are a
+  body parameter and that the response fields the UI renders are declared.
+  This is the class of bug that the 1.6.0 settings break belonged to: the
+  backend suite and TypeScript each pass in isolation while disagreeing across
+  the HTTP boundary.
+
+### Changed
+
+- Settings page uses the shared typed API client instead of raw axios, and is
+  styled to match the rest of the dark UI.
+
 ## [1.6.0] - 2026-07-26
 
 Correctness, security and maintainability release. Several features that were

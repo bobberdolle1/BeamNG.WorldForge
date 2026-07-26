@@ -5,7 +5,7 @@
 > **Генерация рельефа для BeamNG.drive из реальных данных о высотах**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.6.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.6.1-blue.svg)](CHANGELOG.md)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)](https://github.com/bobberdolle1/BeamNG.WorldForge/releases)
 
@@ -140,14 +140,19 @@ ground size.
 
 ```bash
 pip install -r backend/requirements-dev.txt
-pytest                    # backend test suite
+pytest                    # backend suite, incl. the frontend/backend contract test
 ruff check backend        # backend lint
 
 cd frontend
 npm run lint
 npm run typecheck
+npm test                  # Vitest suite
 npm run build
 ```
+
+`backend/static/` is generated, not committed: `python build.py` copies
+`frontend/dist` into it so the API can serve the UI from a single process. When
+running the two dev servers separately you do not need it.
 
 ### License
 
@@ -273,14 +278,19 @@ python build.py
 
 ```bash
 pip install -r backend/requirements-dev.txt
-pytest                    # тесты бэкенда
+pytest                    # тесты бэкенда, включая контрактный тест с фронтендом
 ruff check backend        # линтер бэкенда
 
 cd frontend
 npm run lint
 npm run typecheck
+npm test                  # тесты Vitest
 npm run build
 ```
+
+`backend/static/` генерируется, а не коммитится: `python build.py` копирует туда
+`frontend/dist`, чтобы API мог отдавать интерфейс одним процессом. При запуске
+двух dev-серверов по отдельности он не нужен.
 
 ### Лицензия
 
@@ -309,7 +319,7 @@ BeamNG.WorldForge/
 │   ├── hooks/           # Job polling
 │   ├── lib/             # Stage table shared with the backend
 │   └── services/        # API client
-├── tests/               # Backend test suite
+├── tests/               # Backend suite + frontend/backend contract test
 └── docs/                # Documentation
 ```
 

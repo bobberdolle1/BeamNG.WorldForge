@@ -197,6 +197,17 @@ pytest                    # everything
 pytest -m "not network"   # what CI runs
 ```
 
+The frontend has its own Vitest suite under `frontend/src`, and
+`tests/test_api_contract.py` bridges the two: it parses the frontend's API
+client and asserts every path and method it calls exists in the backend's
+OpenAPI schema. Without that bridge each side can pass on its own while
+disagreeing across the HTTP boundary - which is exactly how a settings-page
+break once shipped.
+
+```bash
+cd frontend && npm test
+```
+
 ## Known limitations
 
 * **No authentication.** Intended for local use.

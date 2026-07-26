@@ -10,8 +10,16 @@ import type {
   MapGenerationRequest,
   MapGenerationResponse,
 } from '../types'
+import type { UserSettings, ValidatableService } from '../types/settings'
 
-const api = axios.create({
+/**
+ * Shared axios instance.
+ *
+ * Exported so tests can attach a mock adapter to exactly the instance the app
+ * uses, rather than stubbing the module and losing the interceptor behaviour
+ * under test.
+ */
+export const api = axios.create({
   baseURL: '/api',
   headers: { 'Content-Type': 'application/json' },
   // Without a timeout axios waits forever, so a hung backend leaves the UI
@@ -85,9 +93,24 @@ export function deleteJob(jobId: string): Promise<void> {
   return request(() => api.delete(`/jobs/${jobId}`)).then(() => undefined)
 }
 
+/** Load stored settings. Secrets come back masked. */
+export function getSettings(): Promise<UserSettings> {
+  return request(() => api.get<UserSettings>('/settings'))
+}
+
+/**
+ * Persist settings.
+ *
+ * Partial updates are supported: fields left out are preserved, and masked
+ * placeholders are discarded server-side rather than saved over real keys.
+ */
+export function saveSettings(settings: Partial<UserSettings>): Promise<UserSettings> {
+  return request(() => api.put<UserSettings>('/settings', settings))
+}
+
 /** Validate a provider credential without storing it. */
 export function validateCredential(
-  service: string,
+  service: ValidatableService,
   apiKey: string,
   apiSecret?: string,
 ): Promise<CredentialValidationResult> {

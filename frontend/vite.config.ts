@@ -1,4 +1,5 @@
 import react from '@vitejs/plugin-react'
+/// <reference types="vitest" />
 import { defineConfig, loadEnv } from 'vite'
 
 // https://vitejs.dev/config/
@@ -57,6 +58,19 @@ export default defineConfig(({ mode }) => {
         },
       },
       chunkSizeWarningLimit: 700,
+    },
+    test: {
+      environment: 'jsdom',
+      globals: true,
+      setupFiles: ['./src/test/setup.ts'],
+      // Exclude the built output and dependencies; without this Vitest walks
+      // node_modules looking for specs.
+      include: ['src/**/*.{test,spec}.{ts,tsx}'],
+      coverage: {
+        provider: 'v8',
+        include: ['src/**/*.{ts,tsx}'],
+        exclude: ['src/**/*.{test,spec}.{ts,tsx}', 'src/test/**', 'src/main.tsx'],
+      },
     },
   }
 })
