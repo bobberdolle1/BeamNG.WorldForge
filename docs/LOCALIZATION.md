@@ -1,472 +1,149 @@
-# BeamNG.WorldForge - Руководство по локализации
+# Localization
 
-## 📚 Обзор системы локализации
+The UI is translated with [i18next](https://www.i18next.com/) and
+[react-i18next](https://react.i18next.com/). Two languages ship today:
 
-BeamNG.WorldForge использует **i18next** для интернационализации интерфейса.
+| Language | Code | Keys | Status |
+|---|---|---|---|
+| English | `en` | 109 | Source of truth |
+| Русский | `ru` | 109 | Complete |
 
-### Поддерживаемые языки
+`frontend/src/i18n/locales.test.ts` fails the build if the two files ever
+disagree on which keys exist, so a missing translation is caught before review
+rather than after release.
 
-- 🇬🇧 **English** (en) - основной язык
-- 🇷🇺 **Русский** (ru) - полная локализация
-
-## 🏗️ Структура файлов
+## Layout
 
 ```
 frontend/src/i18n/
-├── config.ts           # Конфигурация i18next
+├── config.ts                   i18next initialisation
 └── locales/
-    ├── en.json         # Английские переводы
-    └── ru.json         # Русские переводы
+    ├── en.json                 the source of truth
+    └── ru.json
 ```
 
-## 📝 Формат файлов перевода
+Keys are nested objects, addressed with dots. Top-level sections:
 
-Переводы хранятся в формате JSON с вложенными объектами:
+| Section | Covers |
+|---|---|
+| `app` | Title, subtitle, version in the header |
+| `nav` | Header navigation |
+| `map` | Map page: instructions, layer switcher, search, selection readout |
+| `settings` | Settings page: API keys, preferences, actions, messages, help links |
+| `generation` | Generation panel: form, stage labels, results, error strings |
+| `preview` | 3D preview panel |
+| `common` | Shared words — loading, error, cancel, close, download |
+
+## Using translations
+
+```tsx
+import { useTranslation } from 'react-i18next'
+
+function MapHeader() {
+  const { t } = useTranslation()
+  return <h1>{t('app.title')}</h1>
+}
+```
+
+Interpolation uses `{{name}}` placeholders:
 
 ```json
-{
-  "app": {
-    "title": "BeamNG.WorldForge",
-    "subtitle": "Generate Maps from Satellite Data"
-  },
-  "nav": {
-    "map": "Map",
-    "settings": "Settings"
-  }
-}
+{ "map": { "selection": { "size": "{{width}} × {{height}} km" } } }
 ```
 
-## 🔑 Структура ключей локализации
-
-### 1. App (общее приложение)
-
-```json
-{
-  "app": {
-    "title": "Название приложения",
-    "subtitle": "Подзаголовок",
-    "version": "Версия"
-  }
-}
+```tsx
+t('map.selection.size', { width: 5.2, height: 5.2 })   // "5.2 × 5.2 km"
 ```
 
-### 2. Navigation (навигация)
+Changing language, as `LanguageSwitcher.tsx` does it:
 
-```json
-{
-  "nav": {
-    "map": "Карта",
-    "settings": "Настройки"
-  }
-}
+```tsx
+const { i18n } = useTranslation()
+i18n.changeLanguage(code)
+localStorage.setItem('language', code)
 ```
 
-### 3. Map (страница карты)
+The choice is read back from `localStorage` in `config.ts` on the next load.
 
-```json
-{
-  "map": {
-    "instructions": {
-      "title": "Заголовок инструкций",
-      "step1": "Шаг 1",
-      "step2": "Шаг 2",
-      "step3": "Шаг 3",
-      "disabled": "Сообщение при отключении"
-    },
-    "layers": {
-      "title": "Заголовок слоев",
-      "street": "Уличная карта",
-      "satellite": "Спутник",
-      "topographic": "Топография",
-      "hybrid": "Гибрид"
-    },
-    "selection": {
-      "size": "{{width}} × {{height}} км",
-      "ratio": "соотношение {{ratio}}:1"
-    }
-  }
-}
+There is a second path: the Settings page stores `preferences.language` on the
+server and applies it after a successful save, so the language follows the
+install rather than the browser. The header switcher is the per-browser
+override; whichever ran last wins for the current session.
+
+## Pipeline stage labels
+
+`generation.progress.*` is the one section that is not addressed literally.
+`ProgressIndicator` builds the key at runtime:
+
+```tsx
+t(`generation.progress.${step.labelKey}`, { defaultValue: step.key })
 ```
 
-**Примечание:** `{{width}}`, `{{height}}`, `{{ratio}}` - это интерполяционные переменные.
+`labelKey` comes from `frontend/src/lib/stages.ts`, which mirrors `BASE_STAGES`
+and `AI_STAGES` in `backend/services/pipeline.py`. **Adding a pipeline stage
+means touching three places:** the backend tuple, `stages.ts`, and both locale
+files. The `defaultValue` keeps a missed translation from rendering as a raw key,
+so an untranslated stage degrades to `fetch_dem` rather than
+`generation.progress.downloadingDEM` — visible, but not broken.
 
-### 4. Settings (страница настроек)
+Because these keys are never written out literally, a plain grep will not find
+them. Do not delete an unreferenced `generation.progress.*` key without checking
+`stages.ts` first.
 
-```json
-{
-  "settings": {
-    "title": "Настройки",
-    "subtitle": "Описание",
-    "apiKeys": {
-      "title": "API-ключи",
-      "subtitle": "Описание секции",
-      "sentinelHubId": {
-        "label": "Метка поля",
-        "description": "Описание"
-      },
-      "verify": "Проверить",
-      "placeholder": "Введите {{label}}"
-    },
-    "preferences": {
-      "title": "Предпочтения",
-      "defaultDataSource": "Источник данных по умолчанию",
-      "defaultImageSource": "Источник изображений",
-      "language": "Язык"
-    },
-    "actions": {
-      "reset": "Сбросить",
-      "save": "Сохранить",
-      "saving": "Сохранение..."
-    },
-    "messages": {
-      "saveSuccess": "Успешно сохранено",
-      "saveError": "Ошибка сохранения"
-    },
-    "help": {
-      "title": "Нужна помощь?",
-      "sentinelHub": "Получить ключи",
-      "opentopography": "Получить ключ",
-      "azureMaps": "Получить подписку"
-    }
-  }
-}
-```
+## Adding a language
 
-### 5. Generation (генерация карт)
+1. **Copy the source file.**
 
-```json
-{
-  "generation": {
-    "title": "Генерация карты",
-    "selectArea": "Выберите область",
-    "configure": "Настройте",
-    "generate": "Сгенерировать",
-    "dataSource": "Источник данных",
-    "resolution": "Разрешение",
-    "heightmapSize": "Размер карты высот",
-    "status": {
-      "idle": "Готово",
-      "processing": "Генерация...",
-      "completed": "Завершено",
-      "error": "Ошибка"
-    }
-  }
-}
-```
+   ```bash
+   cp frontend/src/i18n/locales/en.json frontend/src/i18n/locales/de.json
+   ```
 
-### 6. Common (общие элементы)
+   Translate the values; leave every key exactly as it is.
 
-```json
-{
-  "common": {
-    "loading": "Загрузка...",
-    "error": "Ошибка",
-    "success": "Успех",
-    "cancel": "Отмена",
-    "close": "Закрыть",
-    "download": "Скачать"
-  }
-}
-```
+2. **Register it** in `frontend/src/i18n/config.ts`:
 
-## 🔧 Использование в коде
+   ```ts
+   import de from './locales/de.json'
 
-### 1. Импорт хука useTranslation
+   resources: {
+     en: { translation: en },
+     ru: { translation: ru },
+     de: { translation: de },
+   }
+   ```
 
-```typescript
-import { useTranslation } from 'react-i18next';
-```
+3. **Add it to the switcher** in `frontend/src/components/LanguageSwitcher.tsx`.
 
-### 2. Использование в компоненте
+4. **Widen the backend field** in `backend/models/user_settings.py` so the
+   preference survives a save, and update the `UI_LANGUAGE` row in
+   [SETUP.md](SETUP.md).
 
-```typescript
-function MyComponent() {
-  const { t } = useTranslation();
-  
-  return (
-    <div>
-      <h1>{t('app.title')}</h1>
-      <p>{t('app.subtitle')}</p>
-    </div>
-  );
-}
-```
+5. **Extend the parity test** in `frontend/src/i18n/locales.test.ts` so the new
+   file is checked against `en.json` too.
 
-### 3. Интерполяция переменных
-
-```typescript
-// В переводе: "{{width}} × {{height}} км"
-<span>{t('map.selection.size', { width: 5.2, height: 5.2 })}</span>
-// Результат: "5.2 × 5.2 км"
-```
-
-### 4. Смена языка
-
-```typescript
-import { useTranslation } from 'react-i18next';
-
-function LanguageSwitcher() {
-  const { i18n } = useTranslation();
-  
-  const changeLanguage = (lng: string) => {
-    i18n.changeLanguage(lng);
-    localStorage.setItem('language', lng);
-  };
-  
-  return (
-    <select 
-      value={i18n.language} 
-      onChange={(e) => changeLanguage(e.target.value)}
-    >
-      <option value="en">English</option>
-      <option value="ru">Русский</option>
-    </select>
-  );
-}
-```
-
-## ➕ Добавление нового языка
-
-### Шаг 1: Создать файл перевода
-
-Создайте новый файл в `frontend/src/i18n/locales/`:
+## Checking your work
 
 ```bash
-frontend/src/i18n/locales/de.json  # Немецкий
+cd frontend && npm test        # includes the locale parity check
 ```
 
-### Шаг 2: Скопировать структуру
+Then run the UI and switch languages with the header control. Look at all four
+surfaces — map, settings, an in-flight generation, and a failed one. Error
+strings are the ones that get missed, because you have to cause an error to see
+them.
 
-Скопируйте содержимое `en.json` в новый файл и переведите все значения:
+## Conventions
 
-```json
-{
-  "app": {
-    "title": "BeamNG.WorldForge",
-    "subtitle": "Karten aus Satellitendaten generieren",
-    "version": "MVP v0.1.0"
-  },
-  "nav": {
-    "map": "Karte",
-    "settings": "Einstellungen"
-  }
-  // ... и так далее
-}
-```
+Keep untranslated: product names (BeamNG.drive, Sentinel Hub, Azure Maps),
+technical abbreviations (API, DEM, AI, GeoTIFF), URLs and file paths.
 
-### Шаг 3: Зарегистрировать язык
+Keep the key structure identical across files, always. If a phrase does not
+apply in a language, translate it anyway — deleting the key breaks parity and
+falls back to English mid-sentence, which reads worse than a stiff translation.
 
-Откройте `frontend/src/i18n/config.ts`:
+Watch the length. German and Russian run 20-30 % longer than English, and the
+generation panel is a fixed-width sidebar. If a translation wraps to three lines
+where English took one, shorten it rather than widening the layout.
 
-```typescript
-import i18n from 'i18next';
-import { initReactI18next } from 'react-i18next';
-import en from './locales/en.json';
-import ru from './locales/ru.json';
-import de from './locales/de.json';  // Новый импорт
-
-i18n
-  .use(initReactI18next)
-  .init({
-    resources: {
-      en: { translation: en },
-      ru: { translation: ru },
-      de: { translation: de }  // Новый язык
-    },
-    lng: localStorage.getItem('language') || 'en',
-    fallbackLng: 'en',
-    interpolation: {
-      escapeValue: false
-    }
-  });
-
-export default i18n;
-```
-
-### Шаг 4: Добавить в переключатель языков
-
-Обновите `frontend/src/components/LanguageSwitcher.tsx`:
-
-```typescript
-<select ...>
-  <option value="en">English</option>
-  <option value="ru">Русский</option>
-  <option value="de">Deutsch</option>  // Новая опция
-</select>
-```
-
-### Шаг 5: Обновить бэкенд модель (опционально)
-
-Если хотите, чтобы язык сохранялся в настройках:
-
-```python
-# backend/models/user_settings.py
-class UserPreferences(BaseModel):
-    # ...
-    language: str = Field("en", description="UI language (en, ru, de)")
-```
-
-## ✅ Проверка переводов
-
-### 1. Автоматическая проверка
-
-Создайте скрипт `frontend/src/i18n/validate.ts`:
-
-```typescript
-import en from './locales/en.json';
-import ru from './locales/ru.json';
-
-function validateTranslations() {
-  const enKeys = getKeys(en);
-  const ruKeys = getKeys(ru);
-  
-  const missing = enKeys.filter(key => !ruKeys.includes(key));
-  const extra = ruKeys.filter(key => !enKeys.includes(key));
-  
-  if (missing.length > 0) {
-    console.error('Missing in RU:', missing);
-  }
-  if (extra.length > 0) {
-    console.warn('Extra in RU:', extra);
-  }
-}
-
-function getKeys(obj: any, prefix = ''): string[] {
-  return Object.keys(obj).reduce((keys: string[], key) => {
-    const fullKey = prefix ? `${prefix}.${key}` : key;
-    if (typeof obj[key] === 'object') {
-      return [...keys, ...getKeys(obj[key], fullKey)];
-    }
-    return [...keys, fullKey];
-  }, []);
-}
-
-validateTranslations();
-```
-
-Запустите: `npx ts-node src/i18n/validate.ts`
-
-### 2. Ручная проверка
-
-1. Запустите приложение
-2. Переключите язык
-3. Проверьте все страницы:
-   - Map page
-   - Settings page
-   - Progress indicators
-   - Error messages
-4. Убедитесь, что все элементы переведены
-
-## 📐 Правила и рекомендации
-
-### DO ✅
-
-1. **Используйте вложенные объекты** для логической группировки
-2. **Будьте последовательны** в именовании ключей
-3. **Используйте описательные ключи**: `settings.apiKeys.verify` вместо `btn1`
-4. **Сохраняйте структуру** во всех языковых файлах
-5. **Используйте интерполяцию** для динамических значений
-6. **Сохраняйте технические термины** (BeamNG.drive, API, DEM)
-7. **Тестируйте** каждый новый перевод в реальном UI
-
-### DON'T ❌
-
-1. **Не переводите:**
-   - Имена собственные (BeamNG.drive)
-   - Технические аббревиатуры (API, DEM, AI)
-   - URL и пути к файлам
-   - Названия компаний (Sentinel Hub, Azure Maps)
-
-2. **Не используйте:**
-   - Хардкод текстов в JSX
-   - Машинный перевод без проверки
-   - Неформальный язык в официальных сообщениях
-
-3. **Избегайте:**
-   - Слишком длинных переводов (учитывайте размер UI)
-   - Дублирования ключей
-   - Удаления ключей без проверки использования
-
-## 🐛 Отладка проблем с локализацией
-
-### Текст не переводится
-
-**Проблема:** Вижу ключ вместо перевода (например, `app.title`)
-
-**Решение:**
-1. Проверьте, что ключ существует в JSON-файле
-2. Убедитесь, что используете правильный ключ: `t('app.title')`
-3. Проверьте консоль на ошибки i18next
-4. Перезагрузите страницу
-
-### Некорректный перевод
-
-**Проблема:** Перевод отображается, но некорректно
-
-**Решение:**
-1. Откройте соответствующий JSON-файл
-2. Найдите ключ и исправьте перевод
-3. Сохраните файл
-4. Vite автоматически перезагрузит страницу
-
-### Интерполяция не работает
-
-**Проблема:** Вижу `{{variable}}` вместо значения
-
-**Решение:**
-```typescript
-// ❌ Неправильно
-t('map.selection.size')
-
-// ✅ Правильно
-t('map.selection.size', { width: 5, height: 5 })
-```
-
-### Язык не меняется
-
-**Проблема:** После смены языка интерфейс не обновляется
-
-**Решение:**
-1. Проверьте, что вызываете `i18n.changeLanguage(lng)`
-2. Убедитесь, что компоненты используют `useTranslation()` хук
-3. Очистите localStorage и перезагрузите
-
-## 📊 Статистика покрытия
-
-### Текущее состояние (v0.2.0)
-
-| Компонент | EN | RU | Покрытие |
-|-----------|----|----|----------|
-| App Header | ✅ | ✅ | 100% |
-| Map Page | ✅ | ✅ | 100% |
-| Settings Page | ✅ | ✅ | 100% |
-| Generation Panel | ✅ | ✅ | 100% |
-| Progress Indicator | ✅ | ✅ | 100% |
-| Error Messages | ✅ | ✅ | 100% |
-
-**Всего строк:** ~150  
-**Языков:** 2  
-**Общее покрытие:** 100%
-
-## 🤝 Участие в переводе
-
-Хотите добавить свой язык или улучшить существующий?
-
-1. Fork репозиторий
-2. Создайте новый файл перевода или исправьте существующий
-3. Протестируйте изменения локально
-4. Создайте Pull Request с описанием изменений
-
-### Чек-лист для PR
-
-- [ ] Все ключи из `en.json` присутствуют
-- [ ] Нет дополнительных ключей
-- [ ] Соблюдена структура JSON
-- [ ] Протестировано в реальном UI
-- [ ] Соблюдены правила перевода
-- [ ] Добавлен язык в переключатель
-- [ ] Обновлена документация
-
----
-
-**Спасибо за помощь в локализации BeamNG.WorldForge!** 🌍
+Never hardcode a user-visible string in JSX. If you are adding UI, you are adding
+keys in the same commit.

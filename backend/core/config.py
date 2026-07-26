@@ -109,7 +109,9 @@ class Settings(BaseSettings):
         description="Ollama endpoint (env var: OLLAMA_HOST)",
     )
     ollama_vl_model: str = Field("qwen3-vl:235b-cloud", description="Vision model for segmentation")
-    ollama_coder_model: str = Field("qwen3-coder:480b-cloud", description="Code model for JBeam generation")
+    # There is no coder model setting: LLM-generated JBeam/COLLADA was removed in
+    # favour of deterministic geometry, and the option outlived the code by two
+    # releases - documented, settable, and read by nothing.
     ollama_timeout_seconds: float = Field(300.0, gt=0, description="Timeout for Ollama requests")
 
     @field_validator("output_dir", "temp_dir", "config_dir", "static_dir", mode="after")

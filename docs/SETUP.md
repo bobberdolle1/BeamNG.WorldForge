@@ -1,321 +1,185 @@
-# BeamNG.WorldForge - Руководство по установке и настройке
+# Setup and configuration
 
-## 🎯 Краткий старт (без настройки!)
+For the fastest path to a first map, see [QUICKSTART](QUICKSTART.md), which is
+bilingual. This page is the configuration reference: every option, where state
+lives, and how to run the app in each supported way.
 
-Приложение работает **из коробки** с бесплатными источниками данных:
-- **OpenTopography** - работает без регистрации (базовый функционал)
-- **Sentinel Hub** - требует бесплатную регистрацию (рекомендуется)
-- **Azure Maps** - альтернатива для спутниковых снимков
+## Requirements
 
-### ⚙️ Управление API-ключами через UI
+| | Needed for |
+|---|---|
+| Python 3.11 or 3.12 | Backend |
+| Node.js 18+ | Frontend (not needed if you only run the standalone build) |
+| Docker + Compose | The containerised path, instead of the two above |
 
-Теперь вы можете управлять всеми API-ключами прямо в веб-интерфейсе:
-1. Откройте приложение http://localhost:5173
-2. Нажмите кнопку **Settings** в верхнем меню
-3. Введите ваши API-ключи
-4. Используйте кнопку **Verify** для проверки каждого ключа
-5. Нажмите **Save Settings**
+No system GDAL. `rasterio` ships wheels with GDAL bundled, and the `GDAL` PyPI
+package - which does need system libraries and a compiler - is deliberately not
+a dependency.
 
-Все ключи надежно шифруются на сервере!
+No API keys either. The default elevation source is anonymous.
 
-## Предварительные требования
-
-### Минимальные:
-1. **Python 3.11+**
-2. **Node.js 18+**
-3. **Docker & Docker Compose** (рекомендуется)
-
-### Рекомендуемые:
-1. **Sentinel Hub аккаунт** (бесплатный тариф)
-2. **OpenTopography API ключ** (опционально, для увеличения квоты)
-
-## 🚀 Установка
-
-### 1. Клонирование репозитория
+## Install
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/bobberdolle1/BeamNG.WorldForge
 cd BeamNG.WorldForge
+
+pip install -r backend/requirements.txt          # runtime
+pip install -r backend/requirements-dev.txt      # + tests, linter, PyInstaller
 ```
 
-### 2. Настройка Google Earth Engine
+Dependencies are pinned in those two files. `backend/pyproject.toml` carries
+packaging metadata and the ruff configuration, and reads its dependency list
+from `requirements.txt` so the two cannot disagree.
 
-#### 2.1. Создание проекта в Google Cloud
-
-1. Перейдите на [Google Cloud Console](https://console.cloud.google.com/)
-2. Создайте новый проект или выберите существующий
-3. Включите **Earth Engine API**:
-   - Перейдите в "APIs & Services" > "Library"
-   - Найдите "Earth Engine API"
-   - Нажмите "Enable"
-
-#### 2.2. Создание сервисного аккаунта
-
-1. Перейдите в "IAM & Admin" > "Service Accounts"
-2. Нажмите "Create Service Account"
-3. Укажите имя (например, "beamng-worldforge")
-4. Выберите роль: **Earth Engine Resource Admin**
-5. Нажмите "Create and Continue"
-6. Нажмите "Done"
-
-#### 2.3. Создание JSON-ключа
-
-1. Найдите созданный сервисный аккаунт в списке
-2. Нажмите на него
-3. Перейдите на вкладку "Keys"
-4. Нажмите "Add Key" > "Create new key"
-5. Выберите формат **JSON**
-6. Скачайте файл
-
-#### 2.4. Размещение ключа
-
-Поместите скачанный JSON-файл в:
-```
-backend/config/gee-key.json
-```
-
-⚠️ **Важно:** Не коммитьте этот файл в Git! Он уже добавлен в `.gitignore`.
-
-### 3. Настройка Backend
+Frontend:
 
 ```bash
-cd backend
-
-# Установка зависимостей через Poetry (рекомендуется)
-poetry install
-
-# ИЛИ через pip
-pip install -r requirements.txt
+cd frontend && npm ci
 ```
 
-#### 3.1. Настройка переменных окружения (опционально)
+## Running
 
-**Метод 1: Через UI (рекомендуется)** - см. раздел "Управление API-ключами через UI"
+### Two dev servers
 
-**Метод 2: Через .env файл** (legacy)
+```bash
+cd backend && uvicorn main:app --reload        # http://localhost:8000
+cd frontend && npm run dev                     # http://localhost:5173
+```
 
-Создайте файл `backend/.env`:
+Open the Vite server on :5173. It proxies `/api` to the backend, so both are
+same-origin from the browser's point of view.
+
+### Docker
+
+```bash
+docker compose up
+```
+
+Backend on :8000, frontend on :5173. Generated data lives in named volumes
+(`worldforge-config`, `worldforge-output`, `worldforge-temp`), so rebuilding the
+image does not discard finished maps or the encrypted settings file.
+
+### Single process
+
+```bash
+python build.py            # builds the frontend into backend/static
+cd backend && uvicorn main:app
+```
+
+The API then serves the UI itself at http://localhost:8000. This is also what
+the standalone executable does - see
+[BUILD_INSTRUCTIONS](../BUILD_INSTRUCTIONS.md).
+
+## Configuration
+
+Every setting is an environment variable, read at startup and validated. An
+unrecognised value fails immediately rather than silently falling back to a
+default deep inside a service. Copy `backend/.env.example` to `backend/.env` to
+set them from a file.
+
+API keys can also be entered in the Settings page, where they are encrypted at
+rest. Environment variables take precedence over stored values.
+
+### Server
+
+| Variable | Default | Notes |
+|---|---|---|
+| `API_HOST` | `127.0.0.1` | Use `0.0.0.0` only when you intend to expose the API. There is **no authentication** on any endpoint. |
+| `API_PORT` | `8000` | |
+| `LOG_LEVEL` | `INFO` | `CRITICAL`, `ERROR`, `WARNING`, `INFO`, `DEBUG` |
+| `CORS_ORIGINS` | `http://localhost:5173,http://localhost:3000` | Comma-separated browser origins |
+
+### Storage
+
+| Variable | Default | Notes |
+|---|---|---|
+| `OUTPUT_DIR` | `output` | Finished mod archives |
+| `TEMP_DIR` | `temp` | Heightmaps, previews, masks |
+| `CONFIG_DIR` | `config` | Encryption key and encrypted settings |
+| `JOB_RETENTION_SECONDS` | `86400` | How long a finished job and its files are kept |
+| `MAX_CONCURRENT_JOBS` | `2` | Each running job holds a full DEM in memory |
+
+Relative paths resolve against the `backend` directory - or, in the standalone
+executable, against the directory holding the executable. Never against the
+shell's working directory, so it does not matter where you start the server
+from.
+
+### Generation defaults
+
+| Variable | Default | Notes |
+|---|---|---|
+| `DEFAULT_DATA_SOURCE` | `auto` | `auto`, `aws_terrain`, `opentopography`, `sentinel_hub`, `azure_maps`, `google_earth_engine` |
+| `DEFAULT_IMAGE_SOURCE` | `sentinel_hub` | Only used by AI segmentation |
+| `UI_LANGUAGE` | `en` | `en` or `ru` |
+
+### Data source credentials
+
+All optional. See [SETUP_DATA_SOURCES](SETUP_DATA_SOURCES.md) for what each one
+buys you and how to obtain it.
 
 ```env
-# Google Earth Engine
+OPENTOPOGRAPHY_API_KEY=
+SENTINEL_HUB_CLIENT_ID=
+SENTINEL_HUB_CLIENT_SECRET=
+AZURE_MAPS_SUBSCRIPTION_KEY=
 GEE_SERVICE_ACCOUNT_KEY=config/gee-key.json
-GEE_PROJECT_ID=your-gcp-project-id
-
-# Optional: API Keys (можно задать через UI)
-SENTINEL_HUB_CLIENT_ID=your-client-id
-SENTINEL_HUB_CLIENT_SECRET=your-client-secret
-OPENTOPOGRAPHY_API_KEY=your-api-key
-AZURE_MAPS_SUBSCRIPTION_KEY=your-subscription-key
-
-# API Configuration
-API_HOST=0.0.0.0
-API_PORT=8000
-API_RELOAD=true
-
-# CORS
-CORS_ORIGINS=http://localhost:5173,http://localhost:3000
+GEE_PROJECT_ID=
 ```
 
-⚠️ **Примечание:** Настройки через UI имеют приоритет над .env файлом.
+### AI segmentation
 
-### 4. Настройка Frontend
+Off by default. Needs [Ollama](https://ollama.ai/) running locally; without it
+generation still succeeds and simply detects nothing.
+
+```env
+OLLAMA_HOST=http://localhost:11434
+OLLAMA_VL_MODEL=qwen3-vl:235b-cloud
+```
+
+## Where state lives
+
+```
+backend/
+├── config/
+│   ├── settings.key          Fernet key - git-ignored, never commit or ship it
+│   └── user_settings.enc     Encrypted API keys and preferences
+├── output/<map>.zip          Finished mods
+└── temp/<map>/               Heightmap, preview, masks, vectors
+```
+
+`config/settings.key` is generated on first run with `0600` permissions. It
+decrypts `user_settings.enc`: anyone holding it can read every stored key.
+
+## Verifying the install
 
 ```bash
-cd frontend
-
-# Установка зависимостей
-pnpm install
-# ИЛИ
-npm install
+curl http://localhost:8000/api/health
+curl http://localhost:8000/api/data-sources     # aws_terrain should be available
 ```
-
-## 🏃 Запуск приложения
-
-### Запуск Backend
 
 ```bash
-cd backend
-
-# С Poetry
-poetry run uvicorn main:app --reload --port 8000
-
-# ИЛИ напрямую
-python -m uvicorn main:app --reload --port 8000
+pytest -m "not network"    # backend suite
+cd frontend && npm test    # frontend suite
 ```
 
-Backend будет доступен на `http://localhost:8000`
+## Troubleshooting
 
-Проверьте работу:
-- API документация: http://localhost:8000/docs
-- Health check: http://localhost:8000/api/health
+| Symptom | Cause |
+|---|---|
+| `pip install` fails building GDAL | An old `requirements.txt`. Current versions do not depend on the GDAL package; pull and reinstall. |
+| "No elevation data source is available" | The AWS bucket is unreachable. Check outbound HTTPS, or configure another source in Settings. |
+| Frontend loads but every request fails | Backend not running, or `VITE_API_URL` points at a host the browser cannot reach. Check `/api/health` directly. |
+| Settings save but generation ignores them | Fixed in 1.6.0 - upgrade. Data sources used to read only environment variables. |
+| `docker compose up` aborts on a missing `.env` | Fixed in 1.6.0; the file is optional now. |
+| Everything works but the level is empty in game | Expected until the `.ter` format is confirmed. Import `heightmap.png` through the World Editor using the values in the archive's `WORLDFORGE.md`. |
 
-### Запуск Frontend
+## Production notes
 
-В другом терминале:
+There is no authentication, no rate limiting and no multi-user isolation. This
+is a local tool. If you must expose it:
 
-```bash
-cd frontend
-
-# С pnpm
-pnpm dev
-
-# ИЛИ с npm
-npm run dev
-```
-
-Frontend будет доступен на `http://localhost:5173`
-
-## 🎯 Первое использование
-
-### Шаг 1: Настройка API-ключей (рекомендуется)
-
-1. Откройте `http://localhost:5173`
-2. Нажмите **Settings** в верхнем меню
-3. Получите бесплатные API-ключи:
-   - **Sentinel Hub**: https://apps.sentinel-hub.com/ (30,000 запросов/месяц)
-   - **OpenTopography**: https://opentopography.org/ (бесплатно)
-   - **Azure Maps**: https://azure.microsoft.com/products/azure-maps (опционально)
-4. Введите ключи в соответствующие поля
-5. Нажмите **Verify** для проверки каждого ключа
-6. Нажмите **Save Settings**
-
-### Шаг 2: Выбор языка
-
-Переключите язык интерфейса в верхнем правом углу (🌐 English / 🌐 Русский)
-
-### Шаг 3: Генерация карты
-
-1. Нажмите **Map** в верхнем меню
-2. Используйте переключатель слоев (🗺️ 🛰️ ⛰️ 🌍) для выбора типа карты
-3. **Выберите регион** на карте, кликнув и перетащив мышь
-   - Выделение **автоматически квадратное**
-   - Отображается **сетка 4×4** и **размер в км**
-4. В правой панели:
-   - Введите название карты (например, "test_map")
-   - Выберите источник данных
-   - Настройте разрешение и размер heightmap
-   - Включите **AI-сегментацию** для автоматического распознавания дорог и зданий
-   - Нажмите **Generate Map**
-5. Наблюдайте за прогрессом генерации с детальными этапами:
-   - ✓ Проверка параметров
-   - ✓ Загрузка DEM данных
-   - ✓ Загрузка спутниковых снимков
-   - ✓ Обработка рельефа
-   - 🤖 Распознавание объектов (AI)
-   - ✓ Генерация дорог
-   - ✓ Генерация зданий
-   - ✓ Создание JBeam кода
-   - ✓ Упаковка карты
-6. Скачайте готовый ZIP-файл
-7. Поместите его в `Documents/BeamNG.drive/mods/`
-8. Запустите BeamNG.drive и проверьте карту!
-
-## 🐛 Устранение неполадок
-
-### Backend не запускается
-
-**Проблема:** `Failed to initialize Google Earth Engine`
-
-**Решение:**
-1. Проверьте, что файл `backend/config/gee-key.json` существует
-2. Проверьте, что в `.env` указан правильный `GEE_PROJECT_ID`
-3. Убедитесь, что Earth Engine API включен в Google Cloud Console
-
-**Проблема:** `ModuleNotFoundError: No module named 'rasterio'`
-
-**Решение:**
-```bash
-# Установка GDAL зависимостей (Ubuntu/Debian)
-sudo apt-get install gdal-bin libgdal-dev
-
-# Установка GDAL зависимостей (macOS)
-brew install gdal
-
-# Затем переустановите Python пакеты
-pip install --upgrade --force-reinstall rasterio GDAL
-```
-
-### Frontend не отображает карту
-
-**Проблема:** Карта Leaflet не загружается
-
-**Решение:**
-1. Проверьте консоль браузера на ошибки
-2. Убедитесь, что CSS Leaflet загружен (должен быть виден в Network tab)
-3. Очистите кэш браузера
-
-### Генерация зависает
-
-**Проблема:** Прогресс останавливается на определенном этапе
-
-**Решение:**
-1. Проверьте логи backend в терминале
-2. Убедитесь, что выбранный регион не слишком большой (начните с малого)
-3. Проверьте доступ к интернету (GEE требует загрузки данных)
-4. Увеличьте timeout в настройках (если необходимо)
-
-## ✨ Новые возможности (v0.2.0)
-
-Текущая версия поддерживает:
-- ✅ **UI управление настройками** - настройка API-ключей через веб-интерфейс
-- ✅ **Безопасное хранение** - все ключи шифруются с помощью Fernet
-- ✅ **Валидация ключей** - проверка работоспособности API-ключей
-- ✅ **Улучшенная карта:**
-  - Квадратное выделение области
-  - Сетка 4×4 для визуализации
-  - Отображение размера в км
-  - Переключение слоев (Street, Satellite, Topographic, Hybrid)
-- ✅ **Локализация** - полная поддержка английского и русского языков
-- ✅ **Детальный прогресс** - пошаговая индикация этапов генерации
-- ✅ **Множественные источники данных:**
-  - Sentinel Hub
-  - OpenTopography
-  - Azure Maps
-  - Bing Maps (deprecated)
-
-**В разработке:**
-- 🚧 AI-сегментация дорог и зданий
-- 🚧 3D-превью карты
-- 🚧 Процедурная генерация 3D объектов
-- 🚧 Трафик и симуляция
-
-## 🔗 Полезные ссылки
-
-- [Google Earth Engine Documentation](https://developers.google.com/earth-engine)
-- [BeamNG.drive Modding Wiki](https://documentation.beamng.com/)
-- [React Leaflet Documentation](https://react-leaflet.js.org/)
-- [FastAPI Documentation](https://fastapi.tiangolo.com/)
-
-## 💡 Советы
-
-### Оптимизация скорости генерации
-
-1. **Используйте меньшие регионы** для первых тестов (2-5 км²)
-2. **Уменьшите разрешение** DEM (используйте 30-50m вместо 10m)
-3. **Используйте меньший размер heightmap** (1024x1024 вместо 4096x4096)
-
-### Выбор оптимального региона
-
-- **Хорошо работает:** Равнинные области, города с умеренным рельефом
-- **Может быть проблемно:** Очень гористые регионы, океаны (минимальные данные)
-- **Рекомендуемый размер:** 0.01-0.05 градусов по широте/долготе (~1-5 км)
-
-### Качество heightmap
-
-- Для детального рельефа: 2048x2048 или выше
-- Для больших карт: 1024x1024 (быстрее загружается в игре)
-- Учитывайте, что BeamNG.drive может иметь ограничения на размер
-
-## 🤝 Получение помощи
-
-Если у вас возникли проблемы:
-
-1. Проверьте этот документ
-2. Посмотрите Issues на GitHub
-3. Создайте новый Issue с описанием проблемы
-4. Приложите логи backend и скриншоты ошибок
-
----
-
-**Приятной генерации карт!** 🚗🗺️
-
+- Put it behind a reverse proxy that handles authentication.
+- Keep `API_HOST` bound to localhost and let the proxy reach it.
+- Jobs are held in memory, so run a single worker. Two uvicorn workers each get
+  their own registry, and half the status polls would 404.
