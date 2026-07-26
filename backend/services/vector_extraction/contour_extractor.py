@@ -6,6 +6,16 @@ import cv2
 import numpy as np
 
 
+def _polyline_length(points: list[tuple[int, int]]) -> float:
+    """Total length of a polyline in pixels."""
+    return float(
+        sum(
+            np.hypot(b[0] - a[0], b[1] - a[1])
+            for a, b in zip(points, points[1:], strict=False)
+        )
+    )
+
+
 class ContourExtractor:
     """Extract vector contours from binary masks"""
     
@@ -34,7 +44,12 @@ class ContourExtractor:
         Returns:
             List of contours as numpy arrays
         """
-        # Find contours
+        # findContours requires a single-channel uint8 image; a bool mask (what
+        # skimage returns) raises an unhelpful OpenCV error otherwise.
+        mask = np.asarray(mask)
+        if mask.dtype != np.uint8:
+            mask = (mask > 0).astype(np.uint8) * 255
+
         contours, hierarchy = cv2.findContours(
             mask,
             cv2.RETR_EXTERNAL,  # Only external contours
@@ -86,47 +101,86 @@ class ContourExtractor:
         min_length: int = 50
     ) -> list[np.ndarray]:
         """
-        Extract centerlines from road/path masks using skeletonization
-        
+        Extract road centrelines by skeletonising the mask and tracing it.
+
         Args:
-            mask: Binary mask of roads
-            min_length: Minimum centerline length in pixels
-        
+            mask: Binary road mask; any non-zero value counts.
+            min_length: Minimum polyline length in pixels.
+
         Returns:
-            List of centerline polylines
+            Polylines shaped ``(N, 1, 2)``, matching OpenCV's contour layout so
+            downstream code can treat them interchangeably.
+
+        The previous implementation ran ``cv2.findContours`` over the skeleton.
+        That traces an outline rather than a path, so every road came back
+        running to its far end and then all the way back - an L-shaped road of
+        85 skeleton pixels produced a 137-pixel retraced loop. See
+        :mod:`services.vector_extraction.skeleton`.
         """
-        # Skeletonize the mask to get centerlines
         from skimage.morphology import skeletonize
-        
-        # Convert to boolean
-        binary = mask > 0
-        
-        # Skeletonize
-        skeleton = skeletonize(binary)
-        
-        # Convert skeleton back to uint8
-        skeleton_img = (skeleton * 255).astype(np.uint8)
-        
-        # Extract contours from skeleton
-        contours, _ = cv2.findContours(
-            skeleton_img,
-            cv2.RETR_EXTERNAL,
-            cv2.CHAIN_APPROX_SIMPLE
-        )
-        
-        # Filter by length
+
+        from .skeleton import simplify_polyline, trace_skeleton
+
+        skeleton = skeletonize(np.asarray(mask) > 0)
+
         centerlines = []
-        for contour in contours:
-            length = cv2.arcLength(contour, closed=False)
-            
-            if length >= min_length:
-                # Simplify
-                epsilon = self.simplify_tolerance
-                simplified = cv2.approxPolyDP(contour, epsilon, closed=False)
-                centerlines.append(simplified)
-        
+        for path in trace_skeleton(skeleton):
+            if _polyline_length(path) < min_length:
+                # Skeletons are locally two pixels wide at corners, which leaves
+                # short stubs at every junction. They are noise, not roads.
+                continue
+
+            simplified = simplify_polyline(path, self.simplify_tolerance)
+            if len(simplified) < 2:
+                continue
+
+            centerlines.append(np.array(simplified, dtype=np.int32).reshape(-1, 1, 2))
+
         return centerlines
-    
+
+    def measure_widths(
+        self,
+        mask: np.ndarray,
+        polylines: list[np.ndarray]
+    ) -> list[float]:
+        """
+        Measure the width of the masked feature under each polyline, in pixels.
+
+        Rasterising a detection and then skeletonising it throws away its
+        recorded width, and the vectoriser previously substituted a fixed
+        5-pixel guess. On a 512 px image covering 6 km that turned a 9 m road
+        into a 60 m one - a fifteen-lane highway.
+
+        The width is recoverable from the mask itself: a Euclidean distance
+        transform gives, for every pixel, the distance to the nearest
+        background pixel. On the centreline that distance is half the local
+        width, so the median along a polyline is a robust estimate that ignores
+        junction bulges and frayed ends.
+
+        Args:
+            mask: The binary mask the polylines were traced from.
+            polylines: Centrelines shaped ``(N, 1, 2)`` or ``(N, 2)``.
+
+        Returns:
+            One width in pixels per polyline.
+        """
+        binary = (np.asarray(mask) > 0).astype(np.uint8)
+        distances = cv2.distanceTransform(binary, cv2.DIST_L2, 5)
+
+        rows, cols = distances.shape
+        widths = []
+
+        for polyline in polylines:
+            points = np.asarray(polyline).reshape(-1, 2)
+            samples = [
+                distances[int(np.clip(y, 0, rows - 1)), int(np.clip(x, 0, cols - 1))]
+                for x, y in points
+            ]
+            # Half-width at the centre, doubled; never below one pixel.
+            widths.append(max(float(np.median(samples)) * 2.0, 1.0))
+
+        return widths
+
     def extract_rectangles(
         self,
         mask: np.ndarray,
@@ -165,10 +219,11 @@ class ContourExtractor:
         Returns:
             4-point polygon
         """
+        # np.int0 was removed in NumPy 2.0 and this project pins NumPy 2.x, so
+        # the previous `np.int0(box)` raised AttributeError on every call.
         box = cv2.boxPoints(rect)
-        box = np.int0(box)
-        
-        return [(int(x), int(y)) for x, y in box]
+
+        return [(int(round(x)), int(round(y))) for x, y in box]
     
     def get_statistics(
         self,

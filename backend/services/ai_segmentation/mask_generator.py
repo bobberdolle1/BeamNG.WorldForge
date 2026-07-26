@@ -6,6 +6,8 @@ import cv2
 import numpy as np
 from PIL import Image, ImageDraw
 
+from core.geo import meters_per_degree_lon
+
 
 class MaskGenerator:
     """
@@ -105,11 +107,14 @@ class MaskGenerator:
             for coord in centerline
         ]
         
-        # Convert width from meters to pixels (approximate)
-        # Assuming 1 degree ≈ 111km at equator
-        bbox_width_degrees = bbox[2] - bbox[0]
-        bbox_width_pixels = self.image_size[1]
-        meters_per_pixel = (bbox_width_degrees * 111000) / bbox_width_pixels
+        # Metres per pixel east-west, corrected for latitude. Using
+        # `degrees * 111000` here treated a degree of longitude as if it were a
+        # degree of latitude, so drawn roads were ~21% too narrow at 38 degrees
+        # and half as wide as intended at 60.
+        center_lat = (bbox[1] + bbox[3]) / 2.0
+        meters_per_pixel = (
+            (bbox[2] - bbox[0]) * meters_per_degree_lon(center_lat) / self.image_size[1]
+        )
         pixel_width = int(width / meters_per_pixel) if meters_per_pixel > 0 else 5
         pixel_width = max(pixel_width, 2)  # Minimum 2 pixels
         
