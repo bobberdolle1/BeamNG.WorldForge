@@ -8,6 +8,7 @@ import numpy as np
 from PIL import Image
 from scipy import ndimage
 
+from core.geo import bbox_dimensions
 from core.logging_config import get_logger
 from models.terrain import HeightmapConfig, TerrainData
 
@@ -114,6 +115,81 @@ class TerrainProcessor:
         )
         filled[invalid] = elevation[tuple(idx[invalid] for idx in nearest_index)]
         return filled
+
+    def crop_to_square(
+        self, terrain_data: TerrainData, bbox: list[float]
+    ) -> tuple[TerrainData, list[float]]:
+        """
+        Crop the terrain to a centred square on the ground.
+
+        BeamNG terrain cells are square and the block is square, so the
+        heightmap must be N x N. Resampling a non-square region into that shape
+        stretches one axis: a 6.15 x 6.68 km selection came out 8.6% too wide
+        east-west, so distances and gradients in the exported map did not match
+        the real place.
+
+        Cropping to the largest centred square keeps every remaining sample
+        geometrically honest. The alternative - padding to a square - would
+        cover the difference with invented terrain.
+
+        Args:
+            terrain_data: Cleaned terrain.
+            bbox: ``[min_lon, min_lat, max_lon, max_lat]`` the terrain covers.
+
+        Returns:
+            ``(cropped terrain, bbox of the cropped region)``.
+        """
+        min_lon, min_lat, max_lon, max_lat = bbox
+        dimensions = bbox_dimensions(min_lon, min_lat, max_lon, max_lat)
+
+        side_meters = min(dimensions.width_meters, dimensions.height_meters)
+        if side_meters <= 0:
+            return terrain_data, list(bbox)
+
+        # Ratio of the square's side to each axis; 1.0 on the shorter axis.
+        width_fraction = side_meters / dimensions.width_meters
+        height_fraction = side_meters / dimensions.height_meters
+
+        elevation = terrain_data.to_numpy()
+        rows, cols = elevation.shape
+
+        keep_cols = max(1, int(round(cols * width_fraction)))
+        keep_rows = max(1, int(round(rows * height_fraction)))
+
+        if keep_cols == cols and keep_rows == rows:
+            return terrain_data, list(bbox)
+
+        col_start = (cols - keep_cols) // 2
+        row_start = (rows - keep_rows) // 2
+        cropped = elevation[row_start : row_start + keep_rows, col_start : col_start + keep_cols]
+
+        # Shrink the bbox by the same fractions, about its centre, so the
+        # recorded extent still describes exactly what the heightmap contains.
+        center_lon = (min_lon + max_lon) / 2.0
+        center_lat = (min_lat + max_lat) / 2.0
+        half_lon = (max_lon - min_lon) / 2.0 * width_fraction
+        half_lat = (max_lat - min_lat) / 2.0 * height_fraction
+
+        cropped_bbox = [
+            center_lon - half_lon,
+            center_lat - half_lat,
+            center_lon + half_lon,
+            center_lat + half_lat,
+        ]
+
+        logger.info(
+            "Cropped %dx%d to %dx%d for a square %.0f m terrain block",
+            cols,
+            rows,
+            keep_cols,
+            keep_rows,
+            side_meters,
+        )
+
+        return (
+            TerrainData.from_numpy(cropped, nodata_fraction=terrain_data.nodata_fraction),
+            cropped_bbox,
+        )
 
     def generate_heightmap(
         self,

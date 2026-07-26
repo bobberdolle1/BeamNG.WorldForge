@@ -22,6 +22,7 @@ MIN_AREA_KM2 = 0.01
 
 DataSourceId = Literal[
     "auto",
+    "aws_terrain",
     "sentinel_hub",
     "opentopography",
     "bing_maps",

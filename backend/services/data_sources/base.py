@@ -15,6 +15,7 @@ logger = get_logger(__name__)
 class DataSourceType(StrEnum):
     """Available data source types."""
 
+    AWS_TERRAIN = "aws_terrain"
     SENTINEL_HUB = "sentinel_hub"
     OPENTOPOGRAPHY = "opentopography"
     BING_MAPS = "bing_maps"  # Retired by Microsoft - use AZURE_MAPS instead.
