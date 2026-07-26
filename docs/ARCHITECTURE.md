@@ -100,6 +100,26 @@ real elevation range into a sliver of the available bit depth.
 `elevation: list`, so a 2048×2048 DEM was converted into ~4.2 million
 individually validated Python floats and immediately converted back.
 
+### `services/ai_segmentation/` and `services/vector_extraction/` - detection
+
+Optional, and only active when AI segmentation is enabled. The chain is:
+
+```
+satellite image -> model reply -> masks -> skeleton/contours -> geographic vectors
+   (imagery)      (json_parsing)  (mask_    (skeleton.py,        (vectorizer)
+                                  generator) contour_extractor)
+```
+
+Two properties matter, because both were violated:
+
+* **Rasterising is lossy.** A binary mask cannot carry a building's height, and
+  it can only carry a width down to its own pixel size - about 12 m on a 6 km
+  tile at 512 px. The vectoriser therefore inherits width and height from the
+  originating detection rather than re-deriving them from pixels.
+* **A skeleton is a path, not a shape.** Tracing it with `cv2.findContours`
+  returns the outline, so every road ran out and back. `skeleton.py` walks the
+  pixel graph instead.
+
 ### `services/beamng_integration/` - level content
 
 Converts detected vectors into placeable content: `road_builder` emits decal

@@ -5,6 +5,61 @@ All notable changes to BeamNG.WorldForge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0] - 2026-07-26
+
+Covers the last two untested packages - the AI segmentation and vector
+extraction chain - and fixes four defects found by doing so.
+
+### Fixed
+
+- **Road centrelines were traced twice.** `cv2.findContours` was run over the
+  skeletonised road mask, but that traces an *outline*, not a path: an L-shaped
+  road of 85 skeleton pixels came back as a 137-pixel polyline that ran to the
+  far end and then all the way back. Every non-trivial road exported as a decal
+  road doubled over itself. Replaced with a proper skeleton graph walk
+  (`services/vector_extraction/skeleton.py`) that visits each pixel once and
+  splits branches at junctions.
+- **Detected attributes were thrown away in the raster round trip.** Features
+  are rasterised to a mask and traced back out, and the vectoriser then
+  substituted constants: a fixed 5-pixel road width and a 10 m default height.
+  On a 6 km tile that turned a detected 9 m road into a 60 m one - fifteen
+  lanes - and an 18 m building into a 10 m one. Widths are now measured from
+  the mask with a distance transform, and both width and height are inherited
+  from the originating detection, which wins over any measurement.
+- **`np.int0` was removed in NumPy 2**, which this project pins, so
+  `rectangle_to_polygon` raised `AttributeError` on every call.
+- **Latitude scaling, in two more places.** `mask_generator` and `vectorizer`
+  both computed metres per pixel as `degrees * 111000` on the longitude axis,
+  overstating east-west distance by 21% at 38 degrees and 100% at 60. Both now
+  use the shared `core.geo` helper.
+- `extract_contours` rejected the bool masks that scikit-image returns.
+
+### Changed
+
+- **The optional-AI handler no longer hides bugs.** It caught every exception
+  so a missing Ollama install would degrade gracefully - which is also how the
+  original `temp_dir` `NameError` stayed invisible for so long, and it caught a
+  second `NameError` introduced during this very change. `NameError`,
+  `TypeError`, `AttributeError` and friends now propagate; only genuine
+  environment failures are absorbed.
+- Model reply parsing moved to `services/ollama/json_parsing.py` and made
+  considerably more tolerant. The previous greedy `(\{.*\})` regex spanned
+  from the first brace to the last, so a reply containing two objects - or an
+  object followed by prose with a brace in it - was captured as one malformed
+  blob and discarded, wasting a completed inference. Now: balanced,
+  quote-aware scanning, markdown fences, trailing commas, line comments, and
+  bare or wrapped feature lists grouped by class.
+
+### Added
+
+- 80 tests across the previously untested chain: skeleton tracing, contour
+  extraction, vectorising, mask generation, model reply parsing, attribute
+  preservation, and the whole AI path end to end with only the inference
+  stubbed.
+- A round-trip test asserting `MaskGenerator._geo_to_pixel` is the exact
+  inverse of `Vectorizer.pixel_to_geo`, so features cannot drift between
+  rasterising and vectorising.
+
 ## [1.7.0] - 2026-07-26
 
 The release that makes the app work without signing up for anything.

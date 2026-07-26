@@ -53,6 +53,12 @@ class PipelineError(RuntimeError):
     """Raised when a generation stage fails in a way the user can act on."""
 
 
+#: Exceptions that always indicate a defect in this code rather than a missing
+#: optional dependency or an unreachable service. They must never be absorbed
+#: by a degrade-gracefully handler.
+_PROGRAMMING_ERRORS = (NameError, AttributeError, TypeError, ImportError, IndexError, KeyError)
+
+
 @dataclass
 class LevelContent:
     """Placeable content derived from detected vectors."""
@@ -378,11 +384,13 @@ class MapGenerationPipeline:
             progress.finish("fetch_imagery", f"Imagery from {imagery_source.get_source_name()}")
 
             progress.start("segment")
-            masks, feature_counts = self._segment(rgb_image, bbox, work_dir)
+            masks, feature_counts, detections = self._segment(rgb_image, bbox, work_dir)
             progress.finish("segment", f"AI detected {sum(feature_counts.values())} features")
 
             progress.start("vectorize")
-            vector_data = self._vectorize(masks, bbox, rgb_image.shape[:2], work_dir)
+            vector_data = self._vectorize(
+                masks, bbox, rgb_image.shape[:2], work_dir, detections=detections
+            )
             progress.finish("vectorize")
 
             self.job_store.update(
@@ -395,6 +403,13 @@ class MapGenerationPipeline:
             )
             return vector_data
 
+        except _PROGRAMMING_ERRORS:
+            # A NameError or TypeError here is a bug in this file, not a missing
+            # Ollama install. Swallowing those is what hid the original
+            # `temp_dir` NameError and made AI segmentation fail silently for
+            # every user - and it caught a second one during this refactor.
+            logger.exception("Bug in the AI segmentation stage")
+            raise
         except Exception as exc:  # noqa: BLE001 - AI is optional, never fatal
             logger.warning("AI segmentation unavailable, continuing without it: %s", exc)
             self.job_store.update(
@@ -409,8 +424,14 @@ class MapGenerationPipeline:
 
     def _segment(
         self, rgb_image: np.ndarray, bbox: list[float], work_dir: Path
-    ) -> tuple[dict[str, np.ndarray], dict[str, int]]:
-        """Run the vision model and turn its output into raster masks."""
+    ) -> tuple[dict[str, np.ndarray], dict[str, int], dict[str, list]]:
+        """
+        Run the vision model and turn its output into raster masks.
+
+        Returns the raw detections alongside the masks. Rasterising is lossy -
+        a binary mask cannot carry a building's height - so the vectoriser
+        needs the originals to restore those attributes.
+        """
         from services.ai_segmentation.mask_generator import MaskGenerator
         from services.ai_segmentation.segmentor import AISegmentor
 
@@ -435,7 +456,7 @@ class MapGenerationPipeline:
         masks = generator.generate_masks(segmentation, bbox)
         generator.save_masks(masks, str(mask_dir))
 
-        return masks, counts
+        return masks, counts, segmentation
 
     def _vectorize(
         self,
@@ -443,6 +464,7 @@ class MapGenerationPipeline:
         bbox: list[float],
         image_size: tuple[int, int],
         work_dir: Path,
+        detections: dict[str, list] | None = None,
     ) -> dict[str, list]:
         """Convert masks into GeoJSON feature collections on disk."""
         from services.vector_extraction.contour_extractor import ContourExtractor
@@ -455,12 +477,22 @@ class MapGenerationPipeline:
 
         if "roads" in masks:
             centerlines = extractor.extract_centerlines(masks["roads"])
-            vector_data["roads"] = vectorizer.vectorize_road_network(centerlines)
+            # Widths measured from the mask, not a fixed pixel guess: the guess
+            # turned a 9 m road into a 60 m one on a 6 km tile.
+            widths = extractor.measure_widths(masks["roads"], centerlines)
+            vector_data["roads"] = vectorizer.vectorize_road_network(
+                centerlines, widths, source_features=(detections or {}).get("roads")
+            )
 
         if "buildings" in masks:
             contours = extractor.extract_contours(masks["buildings"])
             polygons = extractor.contours_to_polygons(contours)
-            vector_data["buildings"] = vectorizer.vectorize_buildings(polygons)
+            # Height is not recoverable from a binary mask, so it is inherited
+            # from the detection that produced each footprint.
+            vector_data["buildings"] = vectorizer.vectorize_buildings(
+                polygons,
+                source_features=(detections or {}).get("buildings"),
+            )
 
         geojson_dir = work_dir / "vectors"
         geojson_dir.mkdir(parents=True, exist_ok=True)

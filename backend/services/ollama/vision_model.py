@@ -1,12 +1,11 @@
 """Vision model interface for Ollama"""
 
-import json
-import re
 from typing import Any
 
 import numpy as np
 
 from .client import OllamaClient
+from .json_parsing import extract_json, normalise_segmentation
 
 
 class VisionModel:
@@ -222,61 +221,28 @@ Be precise and only include features you can clearly identify.
         classes: list[str]
     ) -> dict[str, list[dict[str, Any]]]:
         """
-        Parse model response into segmentation data
-        
+        Parse a model reply into segmentation data.
+
         Args:
-            response: Raw model response
-            classes: Expected classes
-        
+            response: Raw model reply.
+            classes: Classes that were requested.
+
         Returns:
-            Parsed segmentation data
+            ``{class name: [feature, ...]}``, empty lists where nothing was
+            detected or the reply could not be understood.
         """
-        # Try to extract JSON from response
-        segmentation_data = self._extract_json_from_response(response)
-        
-        if isinstance(segmentation_data, dict):
-            return segmentation_data
-        
-        # Fallback: create empty structure
-        return {cls: [] for cls in classes}
-    
+        return normalise_segmentation(extract_json(response), classes)
+
     def _extract_json_from_response(self, response: str) -> Any:
         """
-        Extract JSON object/array from model response text
-        
-        Args:
-            response: Model response text
-        
-        Returns:
-            Parsed JSON data or None
+        Extract the first JSON value from a model reply.
+
+        Kept as a thin wrapper so existing callers keep working; the logic
+        lives in :mod:`services.ollama.json_parsing`, where it can be tested
+        without constructing an HTTP client.
         """
-        try:
-            # Try to parse entire response as JSON
-            return json.loads(response)
-        except json.JSONDecodeError:
-            pass
-        
-        # Try to find JSON block in text (between ``` or {})
-        json_patterns = [
-            r'```json\s*(.*?)\s*```',  # ```json ... ```
-            r'```\s*(.*?)\s*```',      # ``` ... ```
-            r'(\{.*\})',                # { ... }
-            r'(\[.*\])',                # [ ... ]
-        ]
-        
-        for pattern in json_patterns:
-            match = re.search(pattern, response, re.DOTALL)
-            if match:
-                try:
-                    json_str = match.group(1)
-                    return json.loads(json_str)
-                except json.JSONDecodeError:
-                    continue
-        
-        # Could not extract JSON
-        print("⚠️  Could not extract JSON from response")
-        return None
-    
+        return extract_json(response)
+
     async def close(self):
         """Close underlying client"""
         await self.client.close()
