@@ -100,7 +100,10 @@ export function useGenerationJob(): UseGenerationJob {
         }
 
         consecutiveErrors = 0
-        setStatus(next)
+        // Merge rather than replace: the slug returned when the job was
+        // created must survive polls, otherwise the UI loses the map name if a
+        // status response ever omits it.
+        setStatus((previous) => ({ ...previous, ...next, map_name: next.map_name ?? previous?.map_name }))
 
         if (isTerminal(next.status)) {
           window.clearInterval(timer)

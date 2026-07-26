@@ -1,6 +1,6 @@
 [project]
 name = "beamng-worldforge-backend"
-version = "1.6.0"
+version = "1.6.1"
 description = "Backend API for BeamNG.WorldForge - generate BeamNG.drive maps from real geodata"
 requires-python = ">=3.11"
 license = { text = "MIT" }
