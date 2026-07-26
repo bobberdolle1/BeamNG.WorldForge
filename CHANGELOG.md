@@ -5,6 +5,118 @@ All notable changes to BeamNG.WorldForge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-07-26
+
+Correctness, security and maintainability release. Several features that were
+documented as working did not run at all; this release fixes them and adds a
+test suite so they stay fixed.
+
+### Security
+
+- **Removed the committed Fernet key.** `backend/config/settings.key` was
+  tracked in git, so anyone with the repository could decrypt `user_settings.enc`
+  and read stored API keys. The file is now git-ignored, and the key is created
+  with `0600` permissions at generation time rather than chmod-ed afterwards.
+  **If you used a previous version, rotate every API key you entered.**
+- **Removed the key from release binaries.** The PyInstaller spec bundled
+  `backend/config`, shipping the build machine's encryption key inside every
+  published executable and giving all installs the same key.
+- **Closed a path traversal hole.** Map names came from the request body and
+  were interpolated straight into filesystem paths, so a name like
+  `../../config/settings.key` could read or overwrite files outside the output
+  directory. Names are now validated and slugified, downloads resolve from
+  recorded job artefacts instead of rebuilt paths, and the SPA file handler
+  refuses to serve anything outside the static directory.
+- **Moved credentials out of the query string.** `POST /api/settings/validate/{service}`
+  took the API key as a query parameter, which lands in access logs, proxy logs
+  and browser history. It now takes a JSON body.
+- **Masked values no longer overwrite real secrets.** Submitting the settings
+  form unchanged used to save the `***abcd` placeholder as the new key,
+  destroying it.
+- Backend Docker image runs as an unprivileged user.
+
+### Fixed
+
+- **AI segmentation never worked.** `temp_dir` was referenced ~80 lines before
+  it was assigned; the resulting `NameError` was swallowed by a bare `except`,
+  so every run silently reported zero features. Fixed, and failures are now
+  reported on the job instead of being hidden.
+- **The server froze during generation.** The pipeline was declared `async` but
+  its body was entirely blocking (`requests.get`, SciPy resampling, PNG
+  encoding), so as a FastAPI background task it ran on the event loop and
+  stalled every other request - including the status polling the UI depends on.
+  It is now a sync task dispatched to the worker thread pool.
+- **`/api/health` returned 404 in the bundled build.** The SPA catch-all route
+  was registered before it, and FastAPI matches in registration order.
+- **API keys entered in the UI were ignored.** Data source clients read only
+  from `os.environ`, so nothing saved through the Settings page ever reached a
+  request. Credentials now flow from the settings store, and the client cache is
+  invalidated when settings change.
+- **Nodata was replaced with sea level.** Voided DEM samples became `0.0`,
+  producing kilometre-deep cliffs and compressing the real elevation range into
+  a fraction of the available bit depth. Voids are now filled from the nearest
+  valid sample.
+- **Terrain had no relationship to the selected region.** `squareSize` was
+  hardcoded to `2.0`, so a 1 km and a 20 km selection produced identically sized
+  terrain. It is now derived from the region's true ground size, and the real
+  elevation span is written as `minHeight` + `heightScale`.
+- **The preview image was accepted and then discarded.** `info.json` referenced
+  a `preview.jpg` that was never placed in the archive.
+- **Sentinel Hub validation always failed.** It sent the client ID as a bearer
+  token; it now performs the OAuth2 client-credentials exchange.
+- Preview rendering divided by zero on flat terrain.
+- Frontend polling recreated its interval on every tick and could leave the
+  Generate button permanently disabled.
+- The standalone executable crashed at startup (`pkg_resources` runtime hook,
+  and missing NumPy/SciPy C-extension modules).
+- `pip install -r backend/requirements.txt` failed on a clean machine: the
+  `GDAL` PyPI package is source-only and needs a matching system libgdal.
+  rasterio's wheels already bundle GDAL, so the dependency was removed.
+- `npm run lint` failed - the script existed but no ESLint config did.
+- Vite dev proxy defaulted to `http://backend:8000`, a hostname that only
+  resolves inside the compose network.
+- `docker compose up` aborted when `backend/.env` did not exist.
+
+### Added
+
+- `core/` package: environment-driven configuration (`pydantic-settings`),
+  logging setup, path-safety helpers and shared geo maths. Directories resolve
+  absolutely instead of against the current working directory.
+- Typed job registry with a lock, TTL cleanup of finished jobs and their files,
+  and explicit artefact tracking. `GET /api/jobs` and `DELETE /api/jobs/{id}`.
+- Request validation: bounding boxes must be non-degenerate and under 400 km²,
+  heightmap sizes must be powers of two, map names must be safe slugs. Errors
+  come back as readable strings rather than nested objects.
+- Concurrency limit on simultaneous generations.
+- OpenTopography now falls back across datasets when one has no coverage for
+  the requested region.
+- `WORLDFORGE.md` inside each archive documenting provenance, scale values and
+  import steps.
+- Backend test suite (147 tests) covering path safety, terrain processing,
+  export, the job store, settings encryption and the HTTP API.
+- CI workflow running backend lint + tests on Python 3.11/3.12, and frontend
+  lint, type-check and build.
+
+### Changed
+
+- Generation pipeline extracted from the API route into `services/pipeline.py`
+  with a declarative stage table; the frontend derives its progress bar from a
+  matching table instead of hardcoded percentages.
+- `TerrainData` holds a NumPy array instead of a `list[list[float]]` inside a
+  Pydantic model - a 2048x2048 DEM no longer round-trips through ~4.2 million
+  individually validated Python floats.
+- Data sources declare their capabilities (`dem` / `imagery`) instead of the
+  caller discovering them by catching `NotImplementedError`.
+- OpenTopography availability checks are cached; they previously downloaded a
+  real DEM tile every time the generation panel rendered.
+- 3D preview is lazy-loaded and vendor code is split into cacheable chunks:
+  initial JS download drops from ~913 kB to ~300 kB.
+- `print()` replaced with structured logging in the rewritten modules.
+- Backend image on Python 3.12 without the GDAL build toolchain (~700 MB
+  smaller); frontend image uses `npm ci`.
+- Docs updated to describe what the pipeline actually produces: terrain, not
+  roads, buildings or traffic.
+
 ## [1.5.1] - 2026-03-02
 
 ### 🎁 Standalone Executable Release

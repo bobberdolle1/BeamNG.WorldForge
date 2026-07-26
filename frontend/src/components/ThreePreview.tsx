@@ -138,7 +138,7 @@ export default function ThreePreview({ heightmapUrl, mapSize }: ThreePreviewProp
     // Mouse controls (orbit)
     let isDragging = false
     let previousMousePosition = { x: 0, y: 0 }
-    let cameraAngle = { theta: Math.PI / 4, phi: Math.PI / 6 }
+    const cameraAngle = { theta: Math.PI / 4, phi: Math.PI / 6 }
     let cameraDistance = 80
 
     const onMouseDown = (e: MouseEvent) => {

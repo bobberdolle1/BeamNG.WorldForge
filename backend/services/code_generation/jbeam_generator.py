@@ -1,8 +1,8 @@
 """JBeam road generation from vector data"""
 
 import json
-from typing import List, Dict, Any, Tuple, Optional
 from pathlib import Path
+from typing import Any
 
 from .code_generator import CodeGenerator
 from .prompts import get_jbeam_prompt
@@ -13,7 +13,7 @@ class JBeamGenerator:
     Generate BeamNG.drive JBeam roads from vector data
     """
     
-    def __init__(self, code_generator: Optional[CodeGenerator] = None):
+    def __init__(self, code_generator: CodeGenerator | None = None):
         """
         Initialize JBeam generator
         
@@ -21,12 +21,12 @@ class JBeamGenerator:
             code_generator: CodeGenerator instance (creates new if None)
         """
         self.code_gen = code_generator or CodeGenerator()
-        print(f"🛣️  JBeam Generator initialized")
+        print("🛣️  JBeam Generator initialized")
     
     async def generate_road_network(
         self,
-        roads_data: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        roads_data: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """
         Generate JBeam for entire road network
         
@@ -65,11 +65,11 @@ class JBeamGenerator:
     
     async def generate_single_road(
         self,
-        centerline: List[Tuple[float, float]],
+        centerline: list[tuple[float, float]],
         width: float,
         road_type: str = "residential",
         segment_id: int = 1
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Generate JBeam for a single road
         
@@ -113,7 +113,7 @@ class JBeamGenerator:
             is_valid = await self.code_gen.validate_jbeam(jbeam_data)
             
             if not is_valid:
-                print(f"⚠️  Generated JBeam failed validation, using fallback")
+                print("⚠️  Generated JBeam failed validation, using fallback")
                 jbeam_data = self._create_fallback_jbeam(
                     centerline, width, road_type, segment_id
                 )
@@ -128,11 +128,11 @@ class JBeamGenerator:
     
     def _create_fallback_jbeam(
         self,
-        centerline: List[Tuple[float, float]],
+        centerline: list[tuple[float, float]],
         width: float,
         road_type: str,
         segment_id: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Create fallback JBeam without AI (procedural generation)
         
@@ -145,7 +145,7 @@ class JBeamGenerator:
         Returns:
             Basic JBeam structure
         """
-        print(f"   Creating procedural JBeam fallback...")
+        print("   Creating procedural JBeam fallback...")
         
         # Sample centerline (take every nth point to reduce nodes)
         sample_rate = max(1, len(centerline) // 20)  # Max 20 nodes
@@ -192,7 +192,7 @@ class JBeamGenerator:
         
         return jbeam
     
-    def save_jbeam(self, jbeam_data: Dict[str, Any], output_path: Path):
+    def save_jbeam(self, jbeam_data: dict[str, Any], output_path: Path):
         """
         Save JBeam to file
         

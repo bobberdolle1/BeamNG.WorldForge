@@ -1,171 +1,183 @@
-# BeamNG.WorldForge - Быстрый старт 🚀
+# Quick start / Быстрый старт 🚀
 
-## За 5 минут до первой карты!
+**[English](#english) | [Русский](#russian)**
 
-### Шаг 1: Клонирование
+---
+
+<a name="english"></a>
+## 🇬🇧 English
+
+### 1. Get an elevation data source
+
+The quickest option is a **free OpenTopography API key** - registration takes
+about a minute:
+
+1. Go to <https://opentopography.org/> and create an account.
+2. Open your profile → **myOpenTopo** → request an API key.
+3. Copy the key.
+
+> Google Earth Engine also works, but it needs a Google Cloud project, an
+> enabled Earth Engine API and a service account. Start with OpenTopography.
+
+### 2. Start the app
+
+**Docker (simplest)**
+
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/bobberdolle1/BeamNG.WorldForge
 cd BeamNG.WorldForge
+docker compose up
 ```
 
-### Шаг 2: Настройка Google Earth Engine
+Open <http://localhost:5173>.
 
-1. Перейдите на https://console.cloud.google.com/
-2. Создайте новый проект
-3. Включите **Earth Engine API**
-4. Создайте **Service Account**
-5. Скачайте JSON ключ
-6. Сохраните как `backend/config/gee-key.json`
-
-### Шаг 3: Создайте `.env` файл
-
-**backend/.env:**
-```env
-GEE_SERVICE_ACCOUNT_KEY=config/gee-key.json
-GEE_PROJECT_ID=ваш-project-id
-```
-
-### Шаг 4: Запуск с Docker (проще всего!)
+**From source**
 
 ```bash
-docker-compose up
-```
-
-Готово! Откройте http://localhost:5173
-
----
-
-### Альтернатива: Ручной запуск
-
-**Терминал 1 - Backend:**
-```bash
-cd backend
-pip install -r requirements.txt
-uvicorn main:app --reload
-```
-
-**Терминал 2 - Frontend:**
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
----
-
-## Использование
-
-1. **Выберите регион** на карте (кликните и перетащите)
-2. **Введите название** карты (например: `test_map`)
-3. **Настройте параметры:**
-   - Разрешение: 30m (рекомендуется)
-   - Размер: 1024x1024 (оптимально)
-4. **Нажмите "Generate Map"**
-5. **Дождитесь завершения** (~2-5 минут)
-6. **Скачайте ZIP** файл
-7. **Поместите** в `Documents/BeamNG.drive/mods/`
-8. **Запустите BeamNG.drive** и наслаждайтесь!
-
----
-
-## Рекомендации для первого раза
-
-### Хорошие регионы для тестирования:
-
-**1. San Francisco Downtown** (интересный рельеф)
-```
-Lat: 37.7749 - 37.8049
-Lon: -122.4294 - -122.3994
-```
-
-**2. Небольшая равнина** (для быстрого теста)
-```
-Lat: 40.0000 - 40.0100
-Lon: -105.0000 - -104.9900
-```
-
-**3. Горная местность** (эффектно)
-```
-Lat: 46.5000 - 46.5500
-Lon: 7.5000 - 7.5500
-```
-
-### Советы:
-
-- ✅ Начните с **небольшого региона** (0.01-0.05° по широте/долготе)
-- ✅ Используйте **разрешение 30m** для первого теста
-- ✅ Выбирайте **1024x1024** для баланса качества/скорости
-- ❌ Избегайте **океанов** (мало данных о рельефе)
-- ❌ Не выбирайте **слишком большие регионы** сразу
-
----
-
-## Проверка работоспособности
-
-### Проверка структуры проекта:
-```bash
-python tests/test_project_structure.py
-```
-
-Должно вывести: `SUCCESS: ALL TESTS PASSED!`
-
-### Проверка Backend:
-```bash
-curl http://localhost:8000/api/health
-```
-
-Должно вернуть JSON со статусом "healthy"
-
-### Проверка Frontend:
-Откройте http://localhost:5173 в браузере
-
----
-
-## Устранение проблем
-
-### Backend не запускается?
-
-**Проблема:** "Failed to initialize Google Earth Engine"
-```bash
-# Проверьте:
-1. Файл backend/config/gee-key.json существует?
-2. В .env правильный GEE_PROJECT_ID?
-3. Earth Engine API включен в Google Cloud Console?
-```
-
-**Проблема:** "ModuleNotFoundError"
-```bash
-# Переустановите зависимости:
+# Terminal 1 - backend
 pip install -r backend/requirements.txt
+cd backend && uvicorn main:app --reload
+
+# Terminal 2 - frontend
+cd frontend && npm ci && npm run dev
 ```
 
-### Frontend не загружается?
+### 3. Add your key
 
-**Проблема:** Белый экран
-```bash
-# Проверьте консоль браузера (F12)
-# Переустановите зависимости:
-cd frontend
-rm -rf node_modules
-npm install
+Open the **Settings** page, paste the OpenTopography key, press **Validate**,
+then **Save**. Keys are encrypted before being written to disk.
+
+You can also put it in `backend/.env` instead:
+
+```env
+OPENTOPOGRAPHY_API_KEY=your-key-here
 ```
 
-**Проблема:** Карта не отображается
-```bash
-# Проверьте, загружен ли Leaflet CSS
-# Очистите кэш браузера (Ctrl+Shift+R)
-```
+### 4. Generate a map
+
+1. **Map** page → pick a layer → drag to select a square region.
+   Watch the area readout; the maximum is 400 km². Start with 5-20 km².
+2. Give the map a name, leave the defaults (30 m DEM, 1024×1024 heightmap).
+3. Press **Generate Map**. A typical run takes 30-90 seconds.
+4. Download the ZIP.
+
+### 5. Install it
+
+Copy the ZIP into:
+
+| OS | Path |
+|---|---|
+| Windows | `%USERPROFILE%\Documents\BeamNG.drive\<version>\mods\` |
+| macOS | `~/Library/Application Support/BeamNG.drive/<version>/mods/` |
+| Linux | `~/.local/share/BeamNG.drive/<version>/mods/` |
+
+Start the game; the level appears under **Freeroam**.
+
+Each archive contains `WORLDFORGE.md` with the terrain's scale values, in case
+the heightmap needs importing through the in-game World Editor.
+
+### What you get
+
+Terrain: an accurate heightmap of a real place, at the correct horizontal and
+vertical scale. Roads, buildings and textures are **not** generated - the level
+ships with the default grass material and no objects.
+
+### Troubleshooting
+
+| Symptom | Cause |
+|---|---|
+| "No elevation data source is available" | No API key configured. Add one on the Settings page. |
+| "OpenTopography rejected the API key" | Wrong or inactive key - re-check it in your OpenTopography profile. |
+| "Selected area is too large" | Over 400 km². Select a smaller region. |
+| "No OpenTopography dataset covers this region" | Region outside dataset coverage (SRTM stops at 60° latitude). Try a lower resolution, which selects a global dataset. |
+| Frontend loads but every request fails | Backend not running, or the Vite proxy points at the wrong host. Check <http://localhost:8000/api/health>. |
 
 ---
 
-## Нужна помощь?
+<a name="russian"></a>
+## 🇷🇺 Русский
 
-1. 📖 Читайте [docs/SETUP.md](docs/SETUP.md) - подробная инструкция
-2. 🏗️ Смотрите [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - техническая архитектура
-3. 📡 Изучайте [docs/API.md](docs/API.md) - API документация
-4. 🐛 Создайте Issue на GitHub
+### 1. Получите источник данных о высотах
 
----
+Проще всего — **бесплатный API-ключ OpenTopography**, регистрация занимает
+около минуты:
 
-**Приятного использования! 🗺️🚗**
+1. Зайдите на <https://opentopography.org/> и создайте аккаунт.
+2. Профиль → **myOpenTopo** → запросите API-ключ.
+3. Скопируйте ключ.
 
+> Google Earth Engine тоже работает, но требует проект в Google Cloud,
+> включённый Earth Engine API и сервисный аккаунт. Начните с OpenTopography.
+
+### 2. Запустите приложение
+
+**Docker (проще всего)**
+
+```bash
+git clone https://github.com/bobberdolle1/BeamNG.WorldForge
+cd BeamNG.WorldForge
+docker compose up
+```
+
+Откройте <http://localhost:5173>.
+
+**Из исходников**
+
+```bash
+# Терминал 1 — бэкенд
+pip install -r backend/requirements.txt
+cd backend && uvicorn main:app --reload
+
+# Терминал 2 — фронтенд
+cd frontend && npm ci && npm run dev
+```
+
+### 3. Добавьте ключ
+
+Откройте страницу **Settings**, вставьте ключ OpenTopography, нажмите
+**Validate**, затем **Save**. Ключи шифруются перед записью на диск.
+
+Либо укажите его в `backend/.env`:
+
+```env
+OPENTOPOGRAPHY_API_KEY=ваш-ключ
+```
+
+### 4. Сгенерируйте карту
+
+1. Страница **Map** → выберите слой → выделите квадратную область.
+   Смотрите на площадь; максимум — 400 км². Начните с 5–20 км².
+2. Задайте имя карты, оставьте значения по умолчанию (DEM 30 м, 1024×1024).
+3. Нажмите **Generate Map**. Обычно это 30–90 секунд.
+4. Скачайте ZIP.
+
+### 5. Установите
+
+Скопируйте ZIP в:
+
+| ОС | Путь |
+|---|---|
+| Windows | `%USERPROFILE%\Documents\BeamNG.drive\<версия>\mods\` |
+| macOS | `~/Library/Application Support/BeamNG.drive/<версия>/mods/` |
+| Linux | `~/.local/share/BeamNG.drive/<версия>/mods/` |
+
+Запустите игру — уровень появится в разделе **Freeroam**.
+
+В каждом архиве есть `WORLDFORGE.md` со значениями масштаба рельефа — на
+случай, если карту высот придётся импортировать через World Editor.
+
+### Что вы получаете
+
+Рельеф: точную карту высот реального места в правильном горизонтальном и
+вертикальном масштабе. Дороги, здания и текстуры **не** генерируются — уровень
+идёт с материалом травы по умолчанию и без объектов.
+
+### Если что-то не так
+
+| Симптом | Причина |
+|---|---|
+| «No elevation data source is available» | Не настроен API-ключ. Добавьте его в Settings. |
+| «OpenTopography rejected the API key» | Неверный или неактивный ключ — проверьте в профиле OpenTopography. |
+| «Selected area is too large» | Больше 400 км². Выберите область меньше. |
+| «No OpenTopography dataset covers this region» | Регион вне покрытия датасета (SRTM заканчивается на 60° широты). Попробуйте меньшее разрешение — тогда выбирается глобальный датасет. |
+| Фронтенд открывается, но запросы падают | Не запущен бэкенд или прокси Vite смотрит не туда. Проверьте <http://localhost:8000/api/health>. |

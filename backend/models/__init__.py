@@ -1,6 +1,6 @@
 """Data models for the API"""
-from .map_request import MapGenerationRequest, MapGenerationResponse, BoundingBox
-from .terrain import TerrainData, HeightmapConfig
+from .map_request import BoundingBox, MapGenerationRequest, MapGenerationResponse
+from .terrain import HeightmapConfig, TerrainData
 
 __all__ = [
     "MapGenerationRequest",

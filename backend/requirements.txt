@@ -1,37 +1,42 @@
-# Web Framework
+# Runtime dependencies for the BeamNG.WorldForge backend.
+#
+# Note on GDAL: it is deliberately NOT listed. The `GDAL` PyPI package is a
+# source-only distribution requiring a matching system libgdal plus headers, so
+# `pip install GDAL==3.10.0` fails on a clean machine - which made the documented
+# install command unusable. rasterio ships manylinux/macOS/Windows wheels with
+# GDAL bundled, so it is all that is needed.
+
+# Web framework
 fastapi==0.115.6
 uvicorn[standard]==0.34.0
 python-multipart==0.0.20
 
-# Google Earth Engine
-earthengine-api==1.2.0
-
-# Geospatial processing
+# Geospatial
 rasterio==1.4.3
-GDAL==3.10.0
 numpy==2.2.1
 pillow==11.0.0
+scipy==1.15.1
 
-# HTTP Client
+# HTTP clients
 httpx==0.28.1
 requests==2.32.3
 
-# Data validation
+# Configuration and validation
 pydantic==2.10.5
 pydantic-settings==2.7.1
-
-# Utilities
 python-dotenv==1.0.1
+
+# Secrets at rest
 cryptography==44.0.0
 
-# Visualization
+# Preview rendering
 matplotlib==3.10.0
-scipy==1.15.1
 
-# Computer Vision & Image Processing
-opencv-python==4.10.0.84
+# Satellite imagery segmentation (used when AI features are enabled).
+# The headless OpenCV build avoids pulling in GTK/Qt, which are not present on
+# a slim server image and are never used - nothing here opens a window.
+opencv-python-headless==4.10.0.84
 scikit-image==0.25.0
 
-# Build tools
-pyinstaller==6.11.1
-
+# Google Earth Engine data source (optional at runtime)
+earthengine-api==1.2.0

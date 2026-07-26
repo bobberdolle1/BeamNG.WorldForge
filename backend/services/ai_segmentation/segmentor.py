@@ -1,11 +1,12 @@
 """AI-powered image segmentation using Ollama vision models"""
 
+from typing import Any
+
 import numpy as np
-from typing import Optional, Dict, Any, List
-from pathlib import Path
 
 from services.ollama.client import OllamaClient
 from services.ollama.vision_model import VisionModel
+
 from .prompts import get_prompt
 
 
@@ -17,7 +18,7 @@ class AISegmentor:
     def __init__(
         self,
         model_name: str = "qwen3-vl:235b-cloud",
-        ollama_client: Optional[OllamaClient] = None
+        ollama_client: OllamaClient | None = None
     ):
         """
         Initialize AI segmentor
@@ -34,8 +35,8 @@ class AISegmentor:
     async def segment_image(
         self,
         image: np.ndarray,
-        tasks: Optional[List[str]] = None
-    ) -> Dict[str, Any]:
+        tasks: list[str] | None = None
+    ) -> dict[str, Any]:
         """
         Segment satellite image using AI
         
@@ -50,7 +51,7 @@ class AISegmentor:
         if tasks is None:
             tasks = ["roads", "buildings", "water", "forest", "parking"]
         
-        print(f"🔍 Starting AI segmentation...")
+        print("🔍 Starting AI segmentation...")
         print(f"   Tasks: {', '.join(tasks)}")
         print(f"   Image shape: {image.shape}")
         
@@ -61,15 +62,15 @@ class AISegmentor:
             # Option 2: Individual tasks (more precise for specific tasks)
             results = await self._segment_individual_tasks(image, tasks)
         
-        print(f"✅ AI segmentation complete")
+        print("✅ AI segmentation complete")
         
         return results
     
     async def _segment_multi_class(
         self,
         image: np.ndarray,
-        tasks: List[str]
-    ) -> Dict[str, Any]:
+        tasks: list[str]
+    ) -> dict[str, Any]:
         """
         Perform multi-class segmentation in one go
         
@@ -80,9 +81,9 @@ class AISegmentor:
         Returns:
             Segmentation results
         """
-        prompt = get_prompt("multi_class")
-        
-        print(f"   Using multi-class segmentation...")
+        # NOTE: the multi-class prompt is built inside VisionModel from the
+        # requested classes; get_prompt() is kept for the per-task path below.
+        print("   Using multi-class segmentation...")
         
         # Get segmentation from vision model
         results = await self.vision_model.segment_satellite_image(
@@ -95,8 +96,8 @@ class AISegmentor:
     async def _segment_individual_tasks(
         self,
         image: np.ndarray,
-        tasks: List[str]
-    ) -> Dict[str, Any]:
+        tasks: list[str]
+    ) -> dict[str, Any]:
         """
         Perform segmentation task-by-task (more precise but slower)
         
@@ -129,7 +130,7 @@ class AISegmentor:
         
         return results
     
-    async def assess_image_quality(self, image: np.ndarray) -> Dict[str, Any]:
+    async def assess_image_quality(self, image: np.ndarray) -> dict[str, Any]:
         """
         Assess satellite image quality for map generation
         
@@ -157,7 +158,7 @@ class AISegmentor:
         self,
         image: np.ndarray,
         class_name: str
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Extract only a specific class from image
         
@@ -171,7 +172,7 @@ class AISegmentor:
         results = await self.segment_image(image, tasks=[class_name])
         return results.get(class_name, [])
     
-    def get_statistics(self, segmentation_results: Dict[str, Any]) -> Dict[str, int]:
+    def get_statistics(self, segmentation_results: dict[str, Any]) -> dict[str, int]:
         """
         Get statistics from segmentation results
         

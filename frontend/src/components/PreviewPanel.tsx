@@ -1,20 +1,25 @@
 import { X } from 'lucide-react'
-import ThreePreview from './ThreePreview'
+import { Suspense, lazy } from 'react'
 
+import type { BuildingFeature, MapBounds, RoadFeature } from '../types'
+
+/*
+ * Three.js and @react-three/* account for roughly two thirds of the bundle,
+ * and the 3D preview is opened only after a map has finished generating - so
+ * eagerly bundling it made every first page load pay for a feature most
+ * sessions never reach. Loading it on demand cuts the initial download
+ * substantially and costs a brief spinner the first time the modal is opened.
+ */
+const ThreePreview = lazy(() => import('./ThreePreview'))
 
 interface PreviewPanelProps {
   isOpen: boolean
   onClose: () => void
   mapData: {
     heightmapUrl: string
-    roads?: any[]
-    buildings?: any[]
-    mapBounds?: {
-      minLat: number
-      maxLat: number
-      minLon: number
-      maxLon: number
-    }
+    roads?: RoadFeature[]
+    buildings?: BuildingFeature[]
+    mapBounds?: MapBounds
     mapSize: number
   }
 }
@@ -44,10 +49,18 @@ export const PreviewPanel = ({ isOpen, onClose, mapData }: PreviewPanelProps) =>
         {/* 3D Preview */}
         <div className="flex-1 bg-gray-900 rounded-lg overflow-hidden" style={{ minHeight: '500px' }}>
           {mapData.heightmapUrl ? (
-            <ThreePreview 
-              heightmapUrl={mapData.heightmapUrl} 
-              mapSize={String(mapData.mapSize)}
-            />
+            <Suspense
+              fallback={
+                <div className="flex items-center justify-center h-full text-gray-400">
+                  Loading 3D viewer...
+                </div>
+              }
+            >
+              <ThreePreview
+                heightmapUrl={mapData.heightmapUrl}
+                mapSize={String(mapData.mapSize)}
+              />
+            </Suspense>
           ) : (
             <div className="flex items-center justify-center h-full text-gray-400">
               <div className="text-center">

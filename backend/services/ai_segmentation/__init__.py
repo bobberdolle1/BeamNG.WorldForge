@@ -1,6 +1,6 @@
 """AI-powered image segmentation services"""
-from .segmentor import AISegmentor
 from .mask_generator import MaskGenerator
+from .segmentor import AISegmentor
 
 __all__ = ["AISegmentor", "MaskGenerator"]
 

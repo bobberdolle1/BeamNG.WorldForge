@@ -52,6 +52,14 @@ dist-ssr/
 backend/config/gee-key.json
 backend/output/
 backend/temp/
+
+# Secrets - never commit these.
+# settings.key is the Fernet key that decrypts user_settings.enc; committing it
+# makes the "encrypted" API key storage worthless.
+*.key
+*.enc
+backend/config/settings.key
+backend/config/user_settings.enc
 frontend/.env.local
 frontend/.env.production.local
 

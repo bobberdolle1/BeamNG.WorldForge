@@ -2,6 +2,8 @@ import { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
+import type { RoadFeature } from '../../types';
+
 interface Vehicle {
   mesh: THREE.Mesh;
   position: THREE.Vector3;
@@ -11,7 +13,7 @@ interface Vehicle {
 }
 
 interface TrafficSimProps {
-  roads: any[];
+  roads: RoadFeature[];
   mapBounds: {
     minLat: number;
     maxLat: number;

@@ -1,11 +1,12 @@
 """Ollama HTTP client for AI model interactions"""
 
-import httpx
 import base64
 from pathlib import Path
-from typing import Optional, Dict, Any, List
-import asyncio
-import os
+from typing import Any
+
+import httpx
+
+from core.config import get_settings
 
 
 class OllamaClient:
@@ -13,7 +14,7 @@ class OllamaClient:
     
     def __init__(
         self,
-        base_url: Optional[str] = None,
+        base_url: str | None = None,
         timeout: int = 300,
         use_cloud: bool = True
     ):
@@ -25,7 +26,11 @@ class OllamaClient:
             timeout: Request timeout in seconds
             use_cloud: Use cloud endpoint for large models
         """
-        self.base_url = base_url or os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+        # Reads OLLAMA_HOST via the settings layer. It previously read
+        # OLLAMA_BASE_URL, a variable name that appears nowhere in .env.example
+        # or the docs, so configuring the documented variable did nothing.
+        settings = get_settings()
+        self.base_url = base_url or settings.ollama_base_url
         self.timeout = timeout
         self.use_cloud = use_cloud
         
@@ -41,10 +46,10 @@ class OllamaClient:
         self,
         model: str,
         prompt: str,
-        images: Optional[List[str]] = None,
+        images: list[str] | None = None,
         stream: bool = False,
-        options: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        options: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """
         Generate response from Ollama model
         
@@ -80,16 +85,16 @@ class OllamaClient:
             response.raise_for_status()
             
             result = response.json()
-            print(f"✅ Received response from Ollama")
+            print("✅ Received response from Ollama")
             
             return result
             
-        except httpx.TimeoutException:
+        except httpx.TimeoutException as exc:
             print(f"⏱️  Ollama request timed out after {self.timeout}s")
-            raise RuntimeError(f"Ollama request timed out after {self.timeout}s")
+            raise RuntimeError(f"Ollama request timed out after {self.timeout}s") from exc
         except httpx.HTTPStatusError as e:
             print(f"❌ Ollama HTTP error: {e.response.status_code}")
-            raise RuntimeError(f"Ollama HTTP error: {e.response.text}")
+            raise RuntimeError(f"Ollama HTTP error: {e.response.text}") from e
         except Exception as e:
             print(f"❌ Ollama request failed: {e}")
             raise
@@ -97,10 +102,10 @@ class OllamaClient:
     async def chat(
         self,
         model: str,
-        messages: List[Dict[str, Any]],
+        messages: list[dict[str, Any]],
         stream: bool = False,
-        options: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        options: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """
         Chat completion with Ollama model
         
@@ -132,7 +137,7 @@ class OllamaClient:
             print(f"❌ Ollama chat request failed: {e}")
             raise
     
-    async def list_models(self) -> List[Dict[str, Any]]:
+    async def list_models(self) -> list[dict[str, Any]]:
         """List available models"""
         try:
             response = await self.client.get("/api/tags")
@@ -213,8 +218,9 @@ class OllamaClient:
         Returns:
             Base64-encoded image string
         """
-        from PIL import Image
         from io import BytesIO
+
+        from PIL import Image
         
         # Convert numpy to PIL Image
         pil_image = Image.fromarray(image_array.astype('uint8'))

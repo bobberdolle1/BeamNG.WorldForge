@@ -1,8 +1,8 @@
 """Place buildings in BeamNG.drive level"""
 
 import json
-from typing import List, Dict, Any
 from pathlib import Path
+from typing import Any
 
 
 class BuildingPlacer:
@@ -11,13 +11,13 @@ class BuildingPlacer:
     """
     
     def __init__(self):
-        print(f"🏢 Building Placer initialized")
+        print("🏢 Building Placer initialized")
     
     def create_building_items(
         self,
-        buildings_vector_data: List[Dict[str, Any]],
-        mesh_files: List[str]
-    ) -> List[Dict[str, Any]]:
+        buildings_vector_data: list[dict[str, Any]],
+        mesh_files: list[str]
+    ) -> list[dict[str, Any]]:
         """
         Create items.level.json entries for buildings
         
@@ -32,7 +32,9 @@ class BuildingPlacer:
         
         items = []
         
-        for idx, (building, mesh_file) in enumerate(zip(buildings_vector_data, mesh_files), 1):
+        for idx, (building, mesh_file) in enumerate(
+            zip(buildings_vector_data, mesh_files, strict=False), 1
+        ):
             item = self._create_single_building_item(building, mesh_file, idx)
             items.append(item)
         
@@ -41,10 +43,10 @@ class BuildingPlacer:
     
     def _create_single_building_item(
         self,
-        building_data: Dict[str, Any],
+        building_data: dict[str, Any],
         mesh_file: str,
         building_id: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Create single building item entry
         
@@ -57,8 +59,6 @@ class BuildingPlacer:
             Building item dict
         """
         footprint = building_data.get("footprint", [])
-        height = building_data.get("height", 10.0)
-        building_type = building_data.get("type", "residential")
         
         # Calculate center position from footprint
         if footprint:
@@ -95,9 +95,9 @@ class BuildingPlacer:
     
     def update_items_level(
         self,
-        existing_items: List[Dict[str, Any]],
-        new_buildings: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        existing_items: list[dict[str, Any]],
+        new_buildings: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """
         Merge new buildings into existing items
         
@@ -114,7 +114,7 @@ class BuildingPlacer:
         print(f"✅ Items merged: {len(existing_items)} existing + {len(new_buildings)} new = {len(merged)} total")
         return merged
     
-    def save_items_level(self, items: List[Dict[str, Any]], output_path: Path):
+    def save_items_level(self, items: list[dict[str, Any]], output_path: Path):
         """
         Save items.level.json
         

@@ -1,239 +1,264 @@
-"""Terrain data processing and heightmap generation"""
+"""Terrain data processing and heightmap generation."""
+
+from __future__ import annotations
+
+from pathlib import Path
 
 import numpy as np
 from PIL import Image
 from scipy import ndimage
-from pathlib import Path
-from typing import Tuple, Optional
 
-from models.terrain import TerrainData, HeightmapConfig
+from core.logging_config import get_logger
+from models.terrain import HeightmapConfig, TerrainData
+
+logger = get_logger(__name__)
+
+#: scipy.ndimage.zoom spline order for each interpolation mode.
+_INTERPOLATION_ORDER = {"nearest": 0, "bilinear": 1, "bicubic": 3}
+
+#: Elevation values below this are treated as sentinel nodata markers. DEM
+#: products commonly encode "no measurement" as -32768 (SRTM), -9999 (ASTER)
+#: or -32767. Real terrain never goes below the Dead Sea shore (-430 m), so a
+#: -1000 m threshold separates the two without false positives.
+_NODATA_SENTINEL_THRESHOLD = -1000.0
+
+#: Elevations above this cannot be real (Everest is 8849 m).
+_MAX_PLAUSIBLE_ELEVATION = 9000.0
+
+
+class TerrainProcessingError(RuntimeError):
+    """Raised when a DEM cannot be turned into a usable heightmap."""
 
 
 class TerrainProcessor:
-    """Process terrain elevation data and generate heightmaps"""
-    
-    def __init__(self):
-        self.terrain_data: Optional[TerrainData] = None
-    
+    """Process terrain elevation data and generate BeamNG-compatible heightmaps."""
+
     def process_dem(self, elevation_data: np.ndarray) -> TerrainData:
         """
-        Process raw DEM data into TerrainData model
-        
+        Clean raw DEM data into a :class:`TerrainData`.
+
+        Nodata handling is the important part. The previous implementation did
+        ``np.nan_to_num(data, nan=0.0)``, which replaces every missing sample
+        with sea level. On a mountain tile with a few voided pixels that
+        produces vertical cliffs kilometres deep, and because the heightmap is
+        normalised against min/max, a single voided pixel compressed the entire
+        real elevation range into a sliver of the available bit depth.
+
+        Here, nodata is detected (NaN, infinities, and the usual sentinel
+        values), then filled from the nearest valid neighbour so the surface
+        stays continuous.
+
         Args:
-            elevation_data: Raw elevation array from GEE
-        
+            elevation_data: Raw elevation array from a data source.
+
         Returns:
-            TerrainData object
+            Cleaned :class:`TerrainData`.
+
+        Raises:
+            TerrainProcessingError: If the array is empty or entirely nodata.
         """
-        print(f"🏔️  Processing DEM data: {elevation_data.shape}")
-        
-        # Handle NaN and invalid values
-        elevation_clean = np.nan_to_num(elevation_data, nan=0.0)
-        
-        # Create TerrainData object
-        self.terrain_data = TerrainData.from_numpy(elevation_clean)
-        
-        print(f"   Elevation range: [{self.terrain_data.min_elevation:.1f}, "
-              f"{self.terrain_data.max_elevation:.1f}]m")
-        
-        return self.terrain_data
-    
+        elevation = np.asarray(elevation_data, dtype=np.float32)
+
+        if elevation.ndim != 2:
+            raise TerrainProcessingError(
+                f"Expected a 2D elevation array, got shape {elevation.shape}"
+            )
+        if elevation.size == 0:
+            raise TerrainProcessingError("DEM contains no data (empty array)")
+
+        logger.info("Processing DEM: %sx%s", elevation.shape[1], elevation.shape[0])
+
+        invalid = (
+            ~np.isfinite(elevation)
+            | (elevation <= _NODATA_SENTINEL_THRESHOLD)
+            | (elevation >= _MAX_PLAUSIBLE_ELEVATION)
+        )
+        nodata_fraction = float(invalid.mean())
+
+        if invalid.all():
+            raise TerrainProcessingError(
+                "DEM contains no valid elevation samples. The selected region may be "
+                "outside the dataset's coverage - try a different area or data source."
+            )
+
+        if nodata_fraction > 0:
+            logger.warning(
+                "DEM has %.2f%% missing samples; filling from nearest valid neighbours",
+                nodata_fraction * 100,
+            )
+            elevation = self._fill_nodata(elevation, invalid)
+
+        terrain = TerrainData.from_numpy(elevation, nodata_fraction=nodata_fraction)
+        logger.info(
+            "Elevation range: %.1fm to %.1fm (span %.1fm)",
+            terrain.min_elevation,
+            terrain.max_elevation,
+            terrain.elevation_range,
+        )
+        return terrain
+
+    @staticmethod
+    def _fill_nodata(elevation: np.ndarray, invalid: np.ndarray) -> np.ndarray:
+        """
+        Replace invalid samples with the value of the nearest valid sample.
+
+        Uses a distance transform to find, for every invalid pixel, the index of
+        the closest valid one - a single O(n) pass rather than an iterative
+        blur, and it never invents elevations outside the observed range.
+        """
+        filled = elevation.copy()
+        # ``return_indices`` gives the coordinates of the nearest zero (i.e.
+        # nearest *valid*) cell for every position in the input.
+        _, nearest_index = ndimage.distance_transform_edt(
+            invalid, return_distances=True, return_indices=True
+        )
+        filled[invalid] = elevation[tuple(idx[invalid] for idx in nearest_index)]
+        return filled
+
     def generate_heightmap(
         self,
         terrain_data: TerrainData,
-        config: HeightmapConfig
+        config: HeightmapConfig,
     ) -> np.ndarray:
         """
-        Generate a heightmap image from terrain data
-        
+        Generate a normalised heightmap array from terrain data.
+
         Args:
-            terrain_data: Processed terrain elevation data
-            config: Heightmap generation configuration
-        
+            terrain_data: Cleaned terrain elevation data.
+            config: Heightmap generation configuration.
+
         Returns:
-            Heightmap as numpy array
+            Heightmap as a ``uint16`` (or ``uint8``) array of shape
+            ``(config.size, config.size)``.
         """
-        print(f"🗺️  Generating heightmap: {config.size}x{config.size}, {config.bit_depth}-bit")
-        
-        # Get elevation array
+        logger.info(
+            "Generating %dx%d %d-bit heightmap (%s interpolation)",
+            config.size,
+            config.size,
+            config.bit_depth,
+            config.interpolation,
+        )
+
         elevation = terrain_data.to_numpy()
-        
-        # Resize to target size using interpolation
-        heightmap = self._resize_elevation(
-            elevation,
-            (config.size, config.size),
-            method=config.interpolation
-        )
-        
-        # Normalize to target bit depth range
-        if config.bit_depth == 16:
-            heightmap_normalized = self._normalize_to_16bit(
-                heightmap,
-                vertical_scale=config.vertical_scale
-            )
-        else:  # 8-bit
-            heightmap_normalized = self._normalize_to_8bit(
-                heightmap,
-                vertical_scale=config.vertical_scale
-            )
-        
-        print(f"✅ Heightmap generated: {heightmap_normalized.shape}, "
-              f"dtype: {heightmap_normalized.dtype}")
-        
-        return heightmap_normalized
-    
-    def save_heightmap(
-        self,
-        heightmap: np.ndarray,
-        output_path: Path,
-        bit_depth: int = 16
-    ):
+        resized = self._resize_elevation(elevation, config.size, config.interpolation)
+        return self._normalize(resized, config.bit_depth, config.vertical_scale)
+
+    def save_heightmap(self, heightmap: np.ndarray, output_path: Path, bit_depth: int = 16) -> Path:
         """
-        Save heightmap as PNG image
-        
+        Save a heightmap as a grayscale PNG.
+
         Args:
-            heightmap: Heightmap array
-            output_path: Output file path
-            bit_depth: 8 or 16
-        """
-        print(f"💾 Saving heightmap to {output_path}")
-        
-        # Create output directory if needed
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        # Convert to PIL Image
-        if bit_depth == 16:
-            # Save as 16-bit grayscale PNG
-            img = Image.fromarray(heightmap.astype(np.uint16), mode='I;16')
-        else:
-            # Save as 8-bit grayscale PNG
-            img = Image.fromarray(heightmap.astype(np.uint8), mode='L')
-        
-        img.save(output_path)
-        print(f"✅ Heightmap saved: {output_path}")
-    
-    def _resize_elevation(
-        self,
-        elevation: np.ndarray,
-        target_size: Tuple[int, int],
-        method: str = "bilinear"
-    ) -> np.ndarray:
-        """
-        Resize elevation array to target size
-        
-        Args:
-            elevation: Original elevation array
-            target_size: (height, width)
-            method: Interpolation method
-        
+            heightmap: Heightmap array.
+            output_path: Destination file.
+            bit_depth: 8 or 16.
+
         Returns:
-            Resized elevation array
+            The path written to.
         """
-        original_shape = elevation.shape
-        zoom_factors = (
-            target_size[0] / original_shape[0],
-            target_size[1] / original_shape[1]
-        )
-        
-        # Map interpolation method
-        order_map = {
-            'nearest': 0,
-            'bilinear': 1,
-            'bicubic': 3
-        }
-        order = order_map.get(method, 1)
-        
-        # Resize using scipy
-        resized = ndimage.zoom(elevation, zoom_factors, order=order)
-        
-        return resized
-    
-    def _normalize_to_16bit(
-        self,
-        elevation: np.ndarray,
-        vertical_scale: float = 1.0
-    ) -> np.ndarray:
-        """
-        Normalize elevation data to 16-bit range (0-65535)
-        
-        BeamNG.drive heightmap format:
-        - 16-bit grayscale PNG
-        - 0 = minimum elevation
-        - 65535 = maximum elevation
-        """
-        # Apply vertical scale
-        scaled = elevation * vertical_scale
-        
-        # Get min/max
-        min_elev = np.min(scaled)
-        max_elev = np.max(scaled)
-        
-        # Avoid division by zero
-        if max_elev - min_elev < 0.001:
-            return np.zeros_like(scaled, dtype=np.uint16)
-        
-        # Normalize to 0-65535
-        normalized = ((scaled - min_elev) / (max_elev - min_elev)) * 65535
-        
-        return normalized.astype(np.uint16)
-    
-    def _normalize_to_8bit(
-        self,
-        elevation: np.ndarray,
-        vertical_scale: float = 1.0
-    ) -> np.ndarray:
-        """
-        Normalize elevation data to 8-bit range (0-255)
-        """
-        # Apply vertical scale
-        scaled = elevation * vertical_scale
-        
-        # Get min/max
-        min_elev = np.min(scaled)
-        max_elev = np.max(scaled)
-        
-        # Avoid division by zero
-        if max_elev - min_elev < 0.001:
-            return np.zeros_like(scaled, dtype=np.uint8)
-        
-        # Normalize to 0-255
-        normalized = ((scaled - min_elev) / (max_elev - min_elev)) * 255
-        
-        return normalized.astype(np.uint8)
-    
+        output_path = Path(output_path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        if bit_depth == 16:
+            # Pillow infers I;16 from a uint16 array. Passing mode= explicitly
+            # is deprecated (removed in Pillow 13) and emits a warning.
+            image = Image.fromarray(heightmap.astype(np.uint16))
+        elif bit_depth == 8:
+            image = Image.fromarray(heightmap.astype(np.uint8))
+        else:
+            raise ValueError(f"bit_depth must be 8 or 16, got {bit_depth}")
+
+        image.save(output_path, format="PNG", optimize=False)
+        logger.info("Heightmap saved: %s", output_path)
+        return output_path
+
     def generate_preview(
         self,
         heightmap: np.ndarray,
         output_path: Path,
-        colormap: str = 'terrain'
-    ):
+        colormap: str = "terrain",
+    ) -> Path:
         """
-        Generate a colored preview of the heightmap
-        
+        Render a colourised preview of the heightmap.
+
         Args:
-            heightmap: Heightmap array
-            output_path: Output file path for preview
-            colormap: Color scheme (terrain, viridis, etc.)
+            heightmap: Heightmap array.
+            output_path: Destination PNG.
+            colormap: Matplotlib colormap name.
+
+        Returns:
+            The path written to.
         """
         import matplotlib
-        matplotlib.use('Agg')  # Non-interactive backend
-        import matplotlib.pyplot as plt
-        
-        print(f"🎨 Generating heightmap preview...")
-        
-        # Normalize to 0-1 for visualization
-        normalized = heightmap.astype(float) / np.max(heightmap)
-        
-        # Create figure
-        fig, ax = plt.subplots(figsize=(10, 10), dpi=100)
-        ax.imshow(normalized, cmap=colormap)
-        ax.axis('off')
-        ax.set_title('Heightmap Preview')
-        
-        # Save
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        plt.savefig(output_path, bbox_inches='tight', pad_inches=0)
-        plt.close()
-        
-        print(f"✅ Preview saved: {output_path}")
 
+        matplotlib.use("Agg")  # Non-interactive backend; required on headless servers.
+        import matplotlib.pyplot as plt
+
+        # Normalise defensively: a perfectly flat region yields an all-zero
+        # heightmap, and the previous ``/ np.max(heightmap)`` produced a
+        # division by zero and an all-NaN image.
+        values = heightmap.astype(np.float64)
+        peak = float(values.max())
+        normalised = values / peak if peak > 0 else np.zeros_like(values)
+
+        output_path = Path(output_path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        figure, axes = plt.subplots(figsize=(10, 10), dpi=100)
+        try:
+            axes.imshow(normalised, cmap=colormap, vmin=0.0, vmax=1.0)
+            axes.axis("off")
+            figure.savefig(output_path, bbox_inches="tight", pad_inches=0)
+        finally:
+            plt.close(figure)
+
+        logger.info("Preview saved: %s", output_path)
+        return output_path
+
+    # -- internals ------------------------------------------------------------
+
+    @staticmethod
+    def _resize_elevation(elevation: np.ndarray, size: int, method: str) -> np.ndarray:
+        """Resample an elevation grid to ``size`` x ``size``."""
+        order = _INTERPOLATION_ORDER.get(method, 1)
+        zoom_factors = (size / elevation.shape[0], size / elevation.shape[1])
+
+        resized = ndimage.zoom(elevation, zoom_factors, order=order)
+
+        # ndimage.zoom rounds the output shape, so a non-integer zoom factor can
+        # land one pixel short or long. BeamNG requires the exact square size,
+        # so pad or crop to guarantee it.
+        if resized.shape != (size, size):
+            corrected = np.empty((size, size), dtype=resized.dtype)
+            rows = min(size, resized.shape[0])
+            cols = min(size, resized.shape[1])
+            corrected[:rows, :cols] = resized[:rows, :cols]
+            if rows < size:
+                corrected[rows:, :cols] = corrected[rows - 1, :cols]
+            if cols < size:
+                corrected[:, cols:] = corrected[:, cols - 1 : cols]
+            resized = corrected
+
+        return resized
+
+    @staticmethod
+    def _normalize(elevation: np.ndarray, bit_depth: int, vertical_scale: float) -> np.ndarray:
+        """
+        Normalise elevations into the full range of the target bit depth.
+
+        BeamNG reads the heightmap as an unsigned integer image where 0 is the
+        terrain's minimum height and the maximum value is its peak, so the real
+        elevation span is carried by ``main.level.json``, not the image.
+        """
+        max_value, dtype = (65535, np.uint16) if bit_depth == 16 else (255, np.uint8)
+
+        scaled = elevation.astype(np.float64) * vertical_scale
+        minimum = float(scaled.min())
+        maximum = float(scaled.max())
+        span = maximum - minimum
+
+        if span < 1e-6:
+            # Perfectly flat terrain (a lake, or a region with a single value).
+            return np.zeros(scaled.shape, dtype=dtype)
+
+        normalised = (scaled - minimum) / span * max_value
+        return np.clip(np.rint(normalised), 0, max_value).astype(dtype)

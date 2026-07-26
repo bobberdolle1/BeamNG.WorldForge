@@ -1,139 +1,140 @@
-"""
-Base interface for data sources
-"""
+"""Base interface for geodata sources."""
+
+from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from enum import Enum
-from typing import Tuple, Optional
+from enum import StrEnum
+
 import numpy as np
 
+from core.logging_config import get_logger
 
-class DataSourceType(str, Enum):
-    """Available data source types"""
+logger = get_logger(__name__)
+
+
+class DataSourceType(StrEnum):
+    """Available data source types."""
+
     SENTINEL_HUB = "sentinel_hub"
     OPENTOPOGRAPHY = "opentopography"
-    BING_MAPS = "bing_maps"  # Deprecated - use AZURE_MAPS instead
+    BING_MAPS = "bing_maps"  # Retired by Microsoft - use AZURE_MAPS instead.
     AZURE_MAPS = "azure_maps"
     GOOGLE_EARTH_ENGINE = "google_earth_engine"
 
 
+class Capability(StrEnum):
+    """What a data source can supply."""
+
+    DEM = "dem"
+    IMAGERY = "imagery"
+
+
+class DataSourceError(RuntimeError):
+    """Raised when a data source cannot fulfil a request."""
+
+
+class DataSourceUnavailableError(DataSourceError):
+    """Raised when a data source is not configured or not reachable."""
+
+
 class DataSourceInterface(ABC):
     """
-    Abstract interface for geodata sources
-    
-    All data sources must implement these methods to provide
-    DEM and satellite imagery in a unified format.
+    Abstract interface for geodata sources.
+
+    All data sources implement these methods to provide DEM and satellite
+    imagery in a unified format.
     """
-    
-    def __init__(self, config: Optional[dict] = None):
+
+    #: What this source can provide. Declared per subclass so callers can pick
+    #: an imagery-capable source without calling a method and catching
+    #: NotImplementedError, which is how the pipeline used to discover it.
+    capabilities: frozenset[Capability] = frozenset()
+
+    def __init__(self, config: dict | None = None) -> None:
         """
-        Initialize data source
-        
         Args:
-            config: Optional configuration dict (API keys, credentials, etc.)
+            config: Credentials and options. Supplied by the factory from the
+                user's saved settings; falls back to environment variables.
         """
         self.config = config or {}
-    
+
+    # -- data retrieval -------------------------------------------------------
+
     @abstractmethod
-    def get_dem_data(
-        self,
-        bbox: list,
-        resolution: int = 30
-    ) -> Tuple[np.ndarray, dict]:
+    def get_dem_data(self, bbox: list, resolution: int = 30) -> tuple[np.ndarray, dict]:
         """
-        Fetch Digital Elevation Model (DEM) data
-        
+        Fetch Digital Elevation Model data.
+
         Args:
-            bbox: Bounding box as [min_lon, min_lat, max_lon, max_lat]
-            resolution: Resolution in meters
-        
+            bbox: ``[min_lon, min_lat, max_lon, max_lat]``.
+            resolution: Ground resolution in metres.
+
         Returns:
-            Tuple of (elevation array [H, W], metadata dict)
-            
-        Metadata dict should contain:
-            - bounds: Geographic bounds
-            - crs: Coordinate reference system
-            - width: Array width
-            - height: Array height
-            - resolution: Actual resolution in meters
+            ``(elevation array [H, W] in metres, metadata dict)``.
         """
-        pass
-    
+
     @abstractmethod
-    def get_satellite_image(
-        self,
-        bbox: list,
-        resolution: int = 10
-    ) -> Tuple[np.ndarray, dict]:
+    def get_satellite_image(self, bbox: list, resolution: int = 10) -> tuple[np.ndarray, dict]:
         """
-        Fetch RGB satellite image
-        
+        Fetch an RGB satellite image.
+
         Args:
-            bbox: Bounding box as [min_lon, min_lat, max_lon, max_lat]
-            resolution: Resolution in meters
-        
+            bbox: ``[min_lon, min_lat, max_lon, max_lat]``.
+            resolution: Ground resolution in metres.
+
         Returns:
-            Tuple of (RGB array [H, W, 3], metadata dict)
-            
-        RGB array should be in range 0-255, uint8
+            ``(uint8 RGB array [H, W, 3], metadata dict)``.
         """
-        pass
-    
+
+    # -- capability / availability -------------------------------------------
+
     @abstractmethod
     def test_connection(self) -> bool:
-        """
-        Test if the data source is accessible
-        
-        Returns:
-            True if connection is successful, False otherwise
-        """
-        pass
-    
+        """Return True if the source is configured and reachable."""
+
     @abstractmethod
     def requires_setup(self) -> bool:
-        """
-        Check if this data source requires manual setup (API keys, etc.)
-        
-        Returns:
-            True if manual setup is required, False if it works out-of-the-box
-        """
-        pass
-    
+        """Return True if the user must supply credentials before use."""
+
+    def provides(self, capability: Capability) -> bool:
+        """Return True if this source can supply ``capability``."""
+        return capability in self.capabilities
+
     def get_source_name(self) -> str:
-        """Get human-readable name of this data source"""
+        """Human-readable name."""
         return self.__class__.__name__
-    
+
     def get_source_description(self) -> str:
-        """Get description of this data source"""
+        """Human-readable description shown in the data source picker."""
         return "Data source for elevation and satellite imagery"
-    
+
     def is_available(self) -> bool:
         """
-        Check if this data source is available (credentials configured, API accessible)
-        
-        Returns:
-            True if source is ready to use, False otherwise
+        Return True if the source is ready to use.
+
+        Never raises: callers use this to build the "available sources" list,
+        and one misconfigured provider must not break the whole listing.
         """
         try:
             return self.test_connection()
-        except Exception as e:
-            print(f"⚠️  {self.get_source_name()} is not available: {e}")
+        except Exception as exc:  # noqa: BLE001 - deliberately broad, see docstring
+            logger.info("%s is not available: %s", self.get_source_name(), exc)
             return False
 
 
 class DataSourceMetadata:
-    """Metadata for data source responses"""
-    
+    """Metadata describing a data source response."""
+
     def __init__(
         self,
-        bounds: Tuple[float, float, float, float],
+        bounds: tuple[float, float, float, float],
         crs: str,
         width: int,
         height: int,
         resolution: float,
         source_type: DataSourceType,
-        additional: Optional[dict] = None
-    ):
+        additional: dict | None = None,
+    ) -> None:
         self.bounds = bounds  # (min_lon, min_lat, max_lon, max_lat)
         self.crs = crs
         self.width = width
@@ -141,15 +142,15 @@ class DataSourceMetadata:
         self.resolution = resolution
         self.source_type = source_type
         self.additional = additional or {}
-    
+
     def to_dict(self) -> dict:
-        """Convert to dictionary"""
+        """Convert to a plain dictionary."""
         return {
-            'bounds': self.bounds,
-            'crs': self.crs,
-            'width': self.width,
-            'height': self.height,
-            'resolution': self.resolution,
-            'source_type': self.source_type.value,
-            **self.additional
+            "bounds": self.bounds,
+            "crs": self.crs,
+            "width": self.width,
+            "height": self.height,
+            "resolution": self.resolution,
+            "source_type": self.source_type.value,
+            **self.additional,
         }
