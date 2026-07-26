@@ -5,7 +5,7 @@
 > **Генерация рельефа для BeamNG.drive из реальных данных о высотах**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.6.1-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.7.0-blue.svg)](CHANGELOG.md)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)](https://github.com/bobberdolle1/BeamNG.WorldForge/releases)
 
@@ -19,36 +19,47 @@
 Pick a region on a map, and WorldForge downloads real elevation data for it,
 turns it into a 16-bit heightmap, and packages it as a BeamNG.drive mod.
 
+**No API key required.** The default elevation source is anonymous, so a fresh
+clone generates its first map without registering anywhere.
+
 ### What it actually does
 
 | ✅ Works today | 🚧 Partial / experimental |
 |---|---|
-| Region selection on an interactive map | AI detection of roads and buildings (needs a local Ollama install) |
-| Elevation download from OpenTopography, Sentinel Hub or Earth Engine | Satellite imagery download (needs Sentinel Hub or Azure Maps) |
-| Void filling, resampling, 16-bit heightmap generation | JBeam road and building-mesh generation (code exists, not wired into the pipeline) |
-| Correct terrain scale derived from the selected region | |
+| Keyless elevation from AWS Terrain Tiles | AI detection of roads and buildings (needs a local Ollama install) |
+| Optional OpenTopography / Sentinel Hub / Earth Engine sources | Satellite imagery download (needs Sentinel Hub or Azure Maps) |
+| Void filling, resampling, 16-bit heightmap generation | Binary `.ter` terrain (community-documented format, not verified in-game) |
+| True-square region selection and terrain scale | |
+| Detected roads exported as BeamNG decal roads | |
+| Detected buildings extruded to COLLADA and placed on the terrain | |
 | BeamNG mod archive (`levels/<name>/…`, zipped) | |
 | Heightmap preview image and interactive 3D view | |
 | Encrypted API key storage with a settings UI | |
 | English / Russian interface | |
 
 **What you get** is terrain: an accurate heightmap of a real place, at the right
-horizontal and vertical scale, packaged as a level. Roads, buildings, textures
-and props are **not** generated - the level ships with the default grass
-material and no objects. Each archive contains a `WORLDFORGE.md` with the exact
-scale values in case the heightmap needs importing through the in-game World
-Editor.
+horizontal and vertical scale, packaged as a level. With AI segmentation on
+(and Ollama running) detected roads and buildings are placed on it too;
+without it the level ships with the default grass material and no objects.
+
+One caveat worth knowing up front: BeamNG loads terrain from a binary `.ter`
+file, not from a PNG. The archive contains both. The `.ter` is written to the
+format documented by the modding community but has **not** been verified by
+loading a generated level in the game - if it is rejected, importing the PNG
+through the in-game World Editor always works, and each archive ships a
+`WORLDFORGE.md` with the exact scale values for that.
 
 ### Requirements
 
-* An elevation data source. The quickest is a **free OpenTopography API key**
-  (registration takes about a minute): <https://opentopography.org/>
-* For satellite imagery and the optional AI features: a
-  [Sentinel Hub](https://www.sentinel-hub.com/) free-tier account, plus
-  [Ollama](https://ollama.ai/) running locally.
+Nothing, to generate terrain. The default source - [AWS Terrain
+Tiles](https://registry.opendata.aws/terrain-tiles/) - is anonymous and global,
+roughly 30 m resolution worldwide and 10 m over the continental United States.
 
-Without any key configured the app starts and the UI works, but generation fails
-with a message telling you which source to configure.
+Optional, for better data or extra features:
+
+* [OpenTopography](https://opentopography.org/) - free key, alternative DEM products
+* [Sentinel Hub](https://www.sentinel-hub.com/) - free tier, adds satellite imagery
+* [Ollama](https://ollama.ai/) - local install, enables road/building detection
 
 ### Quick start
 
@@ -85,10 +96,10 @@ Prebuilt binaries for Windows, macOS and Linux are attached to each
 
 ### Using it
 
-1. **Settings** - paste your OpenTopography (or Sentinel Hub) key and press
-   Validate. Keys are encrypted with Fernet before being written to disk.
-2. **Map** - pick a layer, drag to select a square region. The panel shows the
-   area in km²; the maximum is 400 km².
+1. **Map** - pick a layer, drag to select a region. The selection is square on
+   the ground, and the overlay shows its size in km²; the maximum is 400 km².
+2. **Settings** (optional) - add an OpenTopography or Sentinel Hub key and
+   press Verify. Keys are encrypted with Fernet before being written to disk.
 3. **Configure** - name the map, choose a DEM resolution (10-100 m) and a
    heightmap size (512-4096, power of two).
 4. **Generate** - progress is reported per stage. Typical run: 30-90 seconds.
@@ -112,7 +123,7 @@ ground size.
 
 **Frontend:** React 18, TypeScript, Vite, React Leaflet, Three.js, i18next, Tailwind
 **Backend:** Python 3.11+, FastAPI, NumPy, SciPy, rasterio, Pillow, Pydantic
-**Data:** OpenTopography, Sentinel Hub, Azure Maps, Google Earth Engine
+**Data:** AWS Terrain Tiles (default, keyless), OpenTopography, Sentinel Hub, Azure Maps, Google Earth Engine
 
 ### Documentation
 
@@ -160,8 +171,12 @@ MIT - see [LICENSE](LICENSE).
 
 ### Acknowledgments
 
-OpenTopography, Copernicus / ESA, Sentinel Hub, Google Earth Engine, Ollama,
-and the BeamNG.drive community.
+AWS Open Data and the Tilezen/Mapzen Terrain Tiles project, OpenTopography,
+Copernicus / ESA, Sentinel Hub, Google Earth Engine, Ollama, and the
+BeamNG.drive community.
+
+Terrain Tiles is a composite of public-domain and CC-BY sources; see its
+[attribution notes](https://github.com/tilezen/joerd/blob/master/docs/attribution.md).
 
 ---
 
@@ -172,36 +187,46 @@ and the BeamNG.drive community.
 высотах, превратит их в 16-битную карту высот и упакует в мод для
 BeamNG.drive.
 
+**API-ключ не нужен.** Источник высот по умолчанию работает анонимно, поэтому
+свежий клон делает первую карту без регистрации где-либо.
+
 ### Что реально работает
 
 | ✅ Работает сейчас | 🚧 Частично / экспериментально |
 |---|---|
-| Выбор региона на интерактивной карте | AI-распознавание дорог и зданий (нужен локальный Ollama) |
-| Загрузка высот из OpenTopography, Sentinel Hub или Earth Engine | Загрузка спутниковых снимков (нужен Sentinel Hub или Azure Maps) |
-| Заполнение пропусков, ресемплинг, 16-битная карта высот | Генерация JBeam-дорог и мешей зданий (код есть, но в пайплайн не подключён) |
-| Корректный масштаб рельефа по выбранной области | |
+| Высоты из AWS Terrain Tiles без ключа | AI-распознавание дорог и зданий (нужен локальный Ollama) |
+| Опционально OpenTopography / Sentinel Hub / Earth Engine | Загрузка спутниковых снимков (нужен Sentinel Hub или Azure Maps) |
+| Заполнение пропусков, ресемплинг, 16-битная карта высот | Бинарный `.ter` (формат по документации сообщества, в игре не проверен) |
+| Честно квадратное выделение и масштаб рельефа | |
+| Найденные дороги как decal-дороги BeamNG | |
+| Найденные здания — экструзия в COLLADA и посадка на рельеф | |
 | Архив мода BeamNG (`levels/<имя>/…`) | |
 | Превью карты высот и интерактивный 3D-просмотр | |
 | Зашифрованное хранение API-ключей + UI настроек | |
 | Английский / русский интерфейс | |
 
 **Вы получаете рельеф**: точную карту высот реального места, в правильном
-горизонтальном и вертикальном масштабе, упакованную как уровень. Дороги,
-здания, текстуры и объекты **не** генерируются — уровень идёт с материалом
-травы по умолчанию и без объектов. В каждом архиве лежит `WORLDFORGE.md` с
-точными значениями масштаба на случай, если карту высот придётся импортировать
-через встроенный World Editor.
+горизонтальном и вертикальном масштабе, упакованную как уровень. С включённой
+AI-сегментацией (и запущенным Ollama) на него ставятся найденные дороги и
+здания; без неё уровень идёт с материалом травы и без объектов.
+
+Важная оговорка: BeamNG грузит рельеф из бинарного `.ter`, а не из PNG. В
+архиве есть оба файла. `.ter` пишется по формату из документации сообщества, но
+**не проверен** загрузкой уровня в игре — если он не подойдёт, импорт PNG через
+встроенный World Editor работает всегда, и в каждом архиве лежит
+`WORLDFORGE.md` с нужными значениями масштаба.
 
 ### Требования
 
-* Источник данных о высотах. Проще всего — **бесплатный API-ключ
-  OpenTopography** (регистрация занимает минуту): <https://opentopography.org/>
-* Для спутниковых снимков и AI-функций: аккаунт
-  [Sentinel Hub](https://www.sentinel-hub.com/) (бесплатный тариф) и локально
-  запущенный [Ollama](https://ollama.ai/).
+Для генерации рельефа — ничего. Источник по умолчанию, [AWS Terrain
+Tiles](https://registry.opendata.aws/terrain-tiles/), работает анонимно и
+глобально: около 30 м по миру и 10 м по континентальным США.
 
-Без ключей приложение запустится и интерфейс будет работать, но генерация
-завершится с сообщением о том, какой источник нужно настроить.
+Опционально, ради качества данных или дополнительных функций:
+
+* [OpenTopography](https://opentopography.org/) — бесплатный ключ, другие наборы DEM
+* [Sentinel Hub](https://www.sentinel-hub.com/) — бесплатный тариф, добавляет спутниковые снимки
+* [Ollama](https://ollama.ai/) — локально, включает распознавание дорог и зданий
 
 ### Быстрый старт
 
@@ -238,10 +263,10 @@ python build.py
 
 ### Как пользоваться
 
-1. **Settings** — вставьте ключ OpenTopography (или Sentinel Hub) и нажмите
-   Validate. Ключи шифруются Fernet перед записью на диск.
-2. **Map** — выберите слой и выделите квадратную область. Панель показывает
-   площадь в км²; максимум — 400 км².
+1. **Map** — выберите слой и выделите область. Выделение квадратное по земле,
+   оверлей показывает площадь в км²; максимум — 400 км².
+2. **Settings** (опционально) — добавьте ключ OpenTopography или Sentinel Hub и
+   нажмите Verify. Ключи шифруются Fernet перед записью на диск.
 3. **Configure** — задайте имя карты, разрешение DEM (10–100 м) и размер карты
    высот (512–4096, степень двойки).
 4. **Generate** — прогресс показывается по этапам. Обычно 30–90 секунд.
@@ -264,7 +289,7 @@ python build.py
 
 **Фронтенд:** React 18, TypeScript, Vite, React Leaflet, Three.js, i18next, Tailwind
 **Бэкенд:** Python 3.11+, FastAPI, NumPy, SciPy, rasterio, Pillow, Pydantic
-**Данные:** OpenTopography, Sentinel Hub, Azure Maps, Google Earth Engine
+**Данные:** AWS Terrain Tiles (по умолчанию, без ключа), OpenTopography, Sentinel Hub, Azure Maps, Google Earth Engine
 
 ### Безопасность
 
@@ -309,9 +334,10 @@ BeamNG.WorldForge/
 │   └── services/
 │       ├── pipeline.py       # Generation orchestration
 │       ├── jobs.py           # Job registry with TTL cleanup
-│       ├── data_sources/     # OpenTopography, Sentinel Hub, Azure, GEE
+│       ├── data_sources/     # AWS Terrain, OpenTopography, Sentinel Hub, Azure, GEE
 │       ├── terrain/          # DEM cleaning, heightmap generation
-│       ├── export/           # BeamNG mod packaging
+│       ├── export/           # BeamNG mod packaging + binary .ter writer
+│       ├── beamng_integration/ # Roads, buildings and meshes from vectors
 │       ├── ai_segmentation/  # Optional: Ollama vision segmentation
 │       └── vector_extraction/# Optional: masks -> GeoJSON
 ├── frontend/src/

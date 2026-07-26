@@ -5,6 +5,74 @@ All notable changes to BeamNG.WorldForge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-07-26
+
+The release that makes the app work without signing up for anything.
+
+### Added
+
+- **AWS Terrain Tiles data source - no API key, no account, no setup.** Every
+  previous elevation provider required registration, so a fresh clone could not
+  generate a single map. AWS hosts the Terrain Tiles dataset as anonymous
+  public GeoTIFF tiles: ~30 m worldwide, ~10 m over the continental US. It is
+  now first in the auto-selection order, so generation works out of the box.
+- **Binary `.ter` terrain file.** BeamNG loads terrain from a `.ter`, not from
+  a PNG - an archive with only `heightmap.png` was never a drop-in mod. The
+  writer follows the community-documented layout and is covered by round-trip
+  tests, but has **not** been verified by loading a level in the game. The PNG
+  still ships alongside it and the World Editor import path is documented.
+- **Roads and buildings are now real level content.** Detected roads become
+  BeamNG decal roads; detected building footprints are extruded into COLLADA
+  meshes and placed as `TSStatic` items.
+- `core/projection.py`: lat/lon to level-space metres, plus elevation sampling
+  from the generated heightmap.
+- Whole-archive validation tests: every path the level metadata references must
+  be present, the `.ter` must match the PNG, and `squareSize` x heightmap size
+  must equal the real ground size.
+- Frontend selection geometry extracted to `lib/selection.ts` with 19 tests.
+- `@pytest.mark.network` plus an autouse fixture that makes unmarked tests fail
+  on any real HTTP request, so CI cannot start depending on a third-party
+  service being up.
+
+### Fixed
+
+- **Exported terrain was stretched.** The selected region was resampled into a
+  square heightmap regardless of its real aspect ratio, and `squareSize` is a
+  single scalar - so a 6.15 x 6.68 km selection came out 8.6% too wide
+  east-west. The terrain is now cropped to a centred ground square before
+  resampling, and the recorded bbox shrinks to match.
+- **"Square" selection was square in degrees, not metres.** A degree of
+  longitude is shorter than a degree of latitude everywhere but the equator, so
+  a box drawn at 37.9 deg N was 21% narrower east-west than north-south; at
+  60 deg N, half as wide. Selection is now square on the ground.
+- **Roads and buildings would have been placed ~13,600 km from the level.**
+  The unwired placement code used `x = lon * 111000, y = lat * 111000, z = 0`:
+  absolute coordinates, no cosine correction, and every object at sea level
+  regardless of terrain. All three are fixed.
+- A drag that ended outside the map left the selector stuck mid-gesture, with
+  the rectangle following the cursor indefinitely.
+- Leaflet panned the map during selection, since dragging is the same gesture
+  as drawing a box. Map dragging is suspended while selection mode is on.
+- Map search failures only reached the console, so a failed search looked
+  identical to one that simply did not move the map.
+- Building meshes were written under `art/terrains/*/shapes/`, which is not
+  where BeamNG looks for shapes.
+
+### Removed
+
+- **`services/code_generation/` (~1000 lines).** It asked a language model to
+  emit JBeam JSON and COLLADA XML - fixed-schema documents - and fell back to
+  procedural generation whenever the output failed validation. The procedural
+  path was already doing the work, deterministically and without a network
+  call; it now lives in `services/beamng_integration/mesh_builder.py`.
+
+### Verified
+
+Generated Mount Tamalpais (37.88..37.94 N, -122.62..-122.55 W) end to end from
+live data in 2.4 s with no credentials configured: 4 tiles at zoom 12, peak
+elevation 785 m against the real summit of 784 m, 6.15 x 6.15 km of square
+terrain, a 3.7 MB archive whose `.ter` round-trips to exactly the packaged PNG.
+
 ## [1.6.1] - 2026-07-26
 
 ### Fixed

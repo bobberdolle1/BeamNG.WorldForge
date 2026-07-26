@@ -7,19 +7,11 @@
 <a name="english"></a>
 ## 🇬🇧 English
 
-### 1. Get an elevation data source
+### 1. Start the app
 
-The quickest option is a **free OpenTopography API key** - registration takes
-about a minute:
-
-1. Go to <https://opentopography.org/> and create an account.
-2. Open your profile → **myOpenTopo** → request an API key.
-3. Copy the key.
-
-> Google Earth Engine also works, but it needs a Google Cloud project, an
-> enabled Earth Engine API and a service account. Start with OpenTopography.
-
-### 2. Start the app
+There is nothing to sign up for. The default elevation source, AWS Terrain
+Tiles, is anonymous and covers the whole planet at roughly 30 m (10 m over the
+continental US).
 
 **Docker (simplest)**
 
@@ -42,26 +34,16 @@ cd backend && uvicorn main:app --reload
 cd frontend && npm ci && npm run dev
 ```
 
-### 3. Add your key
+### 2. Generate a map
 
-Open the **Settings** page, paste the OpenTopography key, press **Validate**,
-then **Save**. Keys are encrypted before being written to disk.
-
-You can also put it in `backend/.env` instead:
-
-```env
-OPENTOPOGRAPHY_API_KEY=your-key-here
-```
-
-### 4. Generate a map
-
-1. **Map** page → pick a layer → drag to select a square region.
-   Watch the area readout; the maximum is 400 km². Start with 5-20 km².
+1. **Map** page → pick a layer → drag to select a region. The selection is
+   square on the ground and the overlay shows its area; the maximum is 400 km².
+   Start with 5-20 km².
 2. Give the map a name, leave the defaults (30 m DEM, 1024×1024 heightmap).
 3. Press **Generate Map**. A typical run takes 30-90 seconds.
 4. Download the ZIP.
 
-### 5. Install it
+### 3. Install it
 
 Copy the ZIP into:
 
@@ -79,14 +61,21 @@ the heightmap needs importing through the in-game World Editor.
 ### What you get
 
 Terrain: an accurate heightmap of a real place, at the correct horizontal and
-vertical scale. Roads, buildings and textures are **not** generated - the level
-ships with the default grass material and no objects.
+vertical scale. Roads and buildings are placed on it only when AI segmentation
+is enabled and Ollama is running; otherwise the level ships with the default
+grass material and no objects.
+
+BeamNG loads terrain from a binary `.ter` rather than a PNG. The archive ships
+both. The `.ter` follows the community-documented format but has not been
+verified in-game - if the level loads empty, import the PNG through the World
+Editor using the values in `WORLDFORGE.md`.
 
 ### Troubleshooting
 
 | Symptom | Cause |
 |---|---|
-| "No elevation data source is available" | No API key configured. Add one on the Settings page. |
+| "No elevation data source is available" | Nothing reachable. Check your internet connection, or add a provider key in Settings. |
+| "AWS Terrain Tiles has no elevation data for this region" | The selection is over open ocean. Pick an area with land. |
 | "OpenTopography rejected the API key" | Wrong or inactive key - re-check it in your OpenTopography profile. |
 | "Selected area is too large" | Over 400 km². Select a smaller region. |
 | "No OpenTopography dataset covers this region" | Region outside dataset coverage (SRTM stops at 60° latitude). Try a lower resolution, which selects a global dataset. |
@@ -97,19 +86,11 @@ ships with the default grass material and no objects.
 <a name="russian"></a>
 ## 🇷🇺 Русский
 
-### 1. Получите источник данных о высотах
+### 1. Запустите приложение
 
-Проще всего — **бесплатный API-ключ OpenTopography**, регистрация занимает
-около минуты:
-
-1. Зайдите на <https://opentopography.org/> и создайте аккаунт.
-2. Профиль → **myOpenTopo** → запросите API-ключ.
-3. Скопируйте ключ.
-
-> Google Earth Engine тоже работает, но требует проект в Google Cloud,
-> включённый Earth Engine API и сервисный аккаунт. Начните с OpenTopography.
-
-### 2. Запустите приложение
+Регистрироваться нигде не нужно. Источник высот по умолчанию, AWS Terrain
+Tiles, работает анонимно и покрывает всю планету с разрешением около 30 м
+(10 м по континентальным США).
 
 **Docker (проще всего)**
 
@@ -132,26 +113,15 @@ cd backend && uvicorn main:app --reload
 cd frontend && npm ci && npm run dev
 ```
 
-### 3. Добавьте ключ
+### 2. Сгенерируйте карту
 
-Откройте страницу **Settings**, вставьте ключ OpenTopography, нажмите
-**Validate**, затем **Save**. Ключи шифруются перед записью на диск.
-
-Либо укажите его в `backend/.env`:
-
-```env
-OPENTOPOGRAPHY_API_KEY=ваш-ключ
-```
-
-### 4. Сгенерируйте карту
-
-1. Страница **Map** → выберите слой → выделите квадратную область.
-   Смотрите на площадь; максимум — 400 км². Начните с 5–20 км².
+1. Страница **Map** → выберите слой → выделите область. Выделение квадратное
+   по земле, оверлей показывает площадь; максимум — 400 км². Начните с 5–20 км².
 2. Задайте имя карты, оставьте значения по умолчанию (DEM 30 м, 1024×1024).
 3. Нажмите **Generate Map**. Обычно это 30–90 секунд.
 4. Скачайте ZIP.
 
-### 5. Установите
+### 3. Установите
 
 Скопируйте ZIP в:
 
@@ -169,14 +139,21 @@ OPENTOPOGRAPHY_API_KEY=ваш-ключ
 ### Что вы получаете
 
 Рельеф: точную карту высот реального места в правильном горизонтальном и
-вертикальном масштабе. Дороги, здания и текстуры **не** генерируются — уровень
-идёт с материалом травы по умолчанию и без объектов.
+вертикальном масштабе. Дороги и здания ставятся на него только при включённой
+AI-сегментации и запущенном Ollama; иначе уровень идёт с материалом травы и без
+объектов.
+
+BeamNG грузит рельеф из бинарного `.ter`, а не из PNG. В архиве есть оба. `.ter`
+написан по формату из документации сообщества, но в игре не проверен — если
+уровень открылся пустым, импортируйте PNG через World Editor со значениями из
+`WORLDFORGE.md`.
 
 ### Если что-то не так
 
 | Симптом | Причина |
 |---|---|
-| «No elevation data source is available» | Не настроен API-ключ. Добавьте его в Settings. |
+| «No elevation data source is available» | Ничего не доступно. Проверьте интернет или добавьте ключ провайдера в Settings. |
+| «AWS Terrain Tiles has no elevation data for this region» | Выделен открытый океан. Выберите область с сушей. |
 | «OpenTopography rejected the API key» | Неверный или неактивный ключ — проверьте в профиле OpenTopography. |
 | «Selected area is too large» | Больше 400 км². Выберите область меньше. |
 | «No OpenTopography dataset covers this region» | Регион вне покрытия датасета (SRTM заканчивается на 60° широты). Попробуйте меньшее разрешение — тогда выбирается глобальный датасет. |

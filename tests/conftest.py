@@ -53,6 +53,32 @@ def isolated_environment(tmp_path, monkeypatch):
     reset_settings_manager()
 
 
+@pytest.fixture(autouse=True)
+def block_network(request, monkeypatch):
+    """
+    Make outbound HTTP fail loudly unless a test asks for it.
+
+    Some data sources are reachable without credentials, so a test that forgets
+    to stub one will quietly start depending on a third-party service being up -
+    and then fail in CI for reasons that have nothing to do with the change.
+    Tests that genuinely need the network carry ``@pytest.mark.network``.
+    """
+    if request.node.get_closest_marker("network"):
+        return
+
+    import requests
+
+    def refuse(*args, **kwargs):
+        raise RuntimeError(
+            "This test attempted a real HTTP request. Stub the data source, or "
+            "mark the test with @pytest.mark.network if it genuinely needs one."
+        )
+
+    for method in ("get", "post", "put", "delete", "head", "request"):
+        monkeypatch.setattr(requests, method, refuse)
+        monkeypatch.setattr(requests.Session, method, refuse, raising=False)
+
+
 @pytest.fixture
 def settings(isolated_environment):
     """The isolated Settings instance for this test."""

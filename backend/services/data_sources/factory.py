@@ -22,11 +22,17 @@ from .base import Capability, DataSourceInterface, DataSourceType
 
 logger = get_logger(__name__)
 
-#: Preference order when auto-selecting a source. Sentinel Hub first because it
-#: is the only free source providing both DEM and imagery.
+#: Preference order when auto-selecting an elevation source.
+#:
+#: AWS Terrain Tiles comes first because it needs no credentials: a fresh clone
+#: can generate a map immediately instead of failing until the user registers
+#: somewhere. The keyed providers rank above it only when explicitly chosen -
+#: they offer better resolution in some regions, but not by enough to justify
+#: making the default path unusable without setup.
 DEFAULT_DEM_PRIORITY = (
-    DataSourceType.SENTINEL_HUB,
+    DataSourceType.AWS_TERRAIN,
     DataSourceType.OPENTOPOGRAPHY,
+    DataSourceType.SENTINEL_HUB,
     DataSourceType.GOOGLE_EARTH_ENGINE,
 )
 
@@ -154,6 +160,11 @@ class DataSourceFactory:
         """Import and construct the client for ``source_type``."""
         # Imports are local so that a missing optional dependency (notably the
         # Earth Engine SDK) only breaks the source that needs it.
+        if source_type is DataSourceType.AWS_TERRAIN:
+            from .aws_terrain_client import AWSTerrainDataSource
+
+            return AWSTerrainDataSource(config)
+
         if source_type is DataSourceType.SENTINEL_HUB:
             from .sentinel_hub_client import SentinelHubDataSource
 

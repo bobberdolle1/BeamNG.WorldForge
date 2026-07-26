@@ -27,7 +27,7 @@ settings = get_settings()
 configure_logging(settings.log_level)
 logger = get_logger(__name__)
 
-APP_VERSION = "1.6.1"
+APP_VERSION = "1.7.0"
 
 #: How often finished jobs are swept.
 _CLEANUP_INTERVAL_SECONDS = 15 * 60

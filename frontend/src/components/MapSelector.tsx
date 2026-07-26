@@ -1,10 +1,12 @@
-import { useRef, useState } from 'react'
-import { MapContainer, TileLayer, Rectangle, Polyline, useMapEvents } from 'react-leaflet'
-import type { LatLngExpression, Map as LeafletMap } from 'leaflet'
-import { LatLngBounds, LatLng } from 'leaflet'
-import { BoundingBox } from '../types'
+import type { Map as LeafletMap } from 'leaflet'
 import { Layers, Search } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { MapContainer, Polyline, Rectangle, TileLayer, useMap, useMapEvents } from 'react-leaflet'
+
+import { gridLines, measure, squareBoundsFrom, toLeafletBounds } from '../lib/selection'
+import type { BoundingBox } from '../types'
+
 import 'leaflet/dist/leaflet.css'
 
 interface MapSelectorProps {
@@ -12,163 +14,134 @@ interface MapSelectorProps {
   disabled?: boolean
 }
 
-// Calculate distance between two points in kilometers
-function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371 // Earth radius in km
-  const dLat = (lat2 - lat1) * Math.PI / 180
-  const dLon = (lon2 - lon1) * Math.PI / 180
-  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-            Math.sin(dLon/2) * Math.sin(dLon/2)
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
-  return R * c
-}
-
-function BBoxSelector({ onBBoxSelected, disabled, isSelectionMode }: MapSelectorProps & { isSelectionMode: boolean }) {
-  const [bounds, setBounds] = useState<LatLngBounds | null>(null)
-  const [gridLines, setGridLines] = useState<Array<[number, number][]>>([])
+function BBoxSelector({
+  onBBoxSelected,
+  disabled,
+  isSelectionMode,
+}: MapSelectorProps & { isSelectionMode: boolean }) {
+  const [bbox, setBBox] = useState<BoundingBox | null>(null)
   const [isCreating, setIsCreating] = useState(false)
-  const [startPoint, setStartPoint] = useState<LatLng | null>(null)
+  const startRef = useRef<{ lat: number; lng: number } | null>(null)
+  const map = useMap()
 
-  useMapEvents({
-    mousedown(e) {
-      if (disabled || !isSelectionMode) return
-      setIsCreating(true)
-      setStartPoint(e.latlng)
-      setBounds(null)
-      setGridLines([])
-    },
-    mouseup(e) {
-      if (disabled || !isSelectionMode || !isCreating || !startPoint) return
+  // Leaflet pans the map on drag, which is the same gesture as drawing a box.
+  // Suspending dragging while selection mode is on stops the map sliding out
+  // from under the rectangle being drawn.
+  useEffect(() => {
+    if (isSelectionMode && !disabled) {
+      map.dragging.disable()
+    } else {
+      map.dragging.enable()
+    }
+    return () => {
+      map.dragging.enable()
+    }
+  }, [map, isSelectionMode, disabled])
+
+  // A drag that ends outside the map never delivers Leaflet's mouseup, which
+  // left the component stuck mid-selection with the rectangle following the
+  // cursor forever. A window-level listener closes the gesture wherever it ends.
+  useEffect(() => {
+    if (!isCreating) {
+      return
+    }
+    const finish = () => {
       setIsCreating(false)
-      
-      const latDiff = Math.abs(e.latlng.lat - startPoint.lat)
-      const lonDiff = Math.abs(e.latlng.lng - startPoint.lng)
-      const maxDiff = Math.max(latDiff, lonDiff)
-      
-      if (maxDiff < 0.001) {
-        setStartPoint(null)
-        return
-      }
-      
-      const finalBounds = new LatLngBounds(
-        [startPoint.lat, startPoint.lng],
-        [
-          startPoint.lat + (e.latlng.lat > startPoint.lat ? maxDiff : -maxDiff),
-          startPoint.lng + (e.latlng.lng > startPoint.lng ? maxDiff : -maxDiff)
-        ]
-      )
-      
-      setBounds(finalBounds)
-      generateGrid(finalBounds)
-      
-      const bbox: BoundingBox = {
-        min_lat: finalBounds.getSouth(),
-        max_lat: finalBounds.getNorth(),
-        min_lon: finalBounds.getWest(),
-        max_lon: finalBounds.getEast(),
-      }
-      
-      onBBoxSelected(bbox)
-      setStartPoint(null)
-    },
-    mousemove(e) {
-      if (disabled || !startPoint || !isSelectionMode || !isCreating) return
-      
-      const latDiff = Math.abs(e.latlng.lat - startPoint.lat)
-      const lonDiff = Math.abs(e.latlng.lng - startPoint.lng)
-      const maxDiff = Math.max(latDiff, lonDiff)
-      
-      const previewBounds = new LatLngBounds(
-        [startPoint.lat, startPoint.lng],
-        [
-          startPoint.lat + (e.latlng.lat > startPoint.lat ? maxDiff : -maxDiff),
-          startPoint.lng + (e.latlng.lng > startPoint.lng ? maxDiff : -maxDiff)
-        ]
-      )
-      
-      setBounds(previewBounds)
-      generateGrid(previewBounds)
-    },
-  })
-  
-  const generateGrid = (rectBounds: LatLngBounds) => {
-    const south = rectBounds.getSouth()
-    const north = rectBounds.getNorth()
-    const west = rectBounds.getWest()
-    const east = rectBounds.getEast()
-    
-    const latStep = (north - south) / 4
-    const lonStep = (east - west) / 4
-    
-    const lines: Array<[number, number][]> = []
-    
-    for (let i = 1; i < 4; i++) {
-      const lat = south + latStep * i
-      lines.push([[lat, west], [lat, east]])
+      startRef.current = null
     }
-    
-    for (let i = 1; i < 4; i++) {
-      const lon = west + lonStep * i
-      lines.push([[south, lon], [north, lon]])
+    window.addEventListener('pointerup', finish)
+    return () => window.removeEventListener('pointerup', finish)
+  }, [isCreating])
+
+  const update = (current: { lat: number; lng: number }, commit: boolean) => {
+    const start = startRef.current
+    if (!start) {
+      return
     }
-    
-    setGridLines(lines)
+
+    const next = squareBoundsFrom(start, current)
+    if (!next) {
+      // Too small to be deliberate; keep whatever was already selected.
+      return
+    }
+
+    setBBox(next)
+    if (commit) {
+      onBBoxSelected(next)
+    }
   }
 
-  if (!bounds) return null
+  useMapEvents({
+    mousedown(event) {
+      if (disabled || !isSelectionMode) return
+      startRef.current = { lat: event.latlng.lat, lng: event.latlng.lng }
+      setIsCreating(true)
+      setBBox(null)
+    },
+    mousemove(event) {
+      if (disabled || !isSelectionMode || !isCreating) return
+      update({ lat: event.latlng.lat, lng: event.latlng.lng }, false)
+    },
+    mouseup(event) {
+      if (disabled || !isSelectionMode || !isCreating) return
+      update({ lat: event.latlng.lat, lng: event.latlng.lng }, true)
+      setIsCreating(false)
+      startRef.current = null
+    },
+  })
 
-  // Calculate dimensions
-  const width = calculateDistance(
-    bounds.getSouth(), bounds.getWest(),
-    bounds.getSouth(), bounds.getEast()
-  )
-  const height = calculateDistance(
-    bounds.getSouth(), bounds.getWest(),
-    bounds.getNorth(), bounds.getWest()
-  )
+  if (!bbox) return null
+
+  const { widthKm, heightKm, areaKm2, tooLarge } = measure(bbox)
+  const stroke = tooLarge ? '#ef4444' : isCreating ? '#10b981' : '#3b82f6'
 
   return (
     <>
       <Rectangle
-        bounds={bounds}
+        bounds={toLeafletBounds(bbox)}
         pathOptions={{
-          color: isCreating ? '#10b981' : '#3b82f6',
+          color: stroke,
           weight: 3,
-          fillColor: isCreating ? '#34d399' : '#60a5fa',
+          fillColor: stroke,
           fillOpacity: isCreating ? 0.15 : 0.2,
-          dashArray: undefined,
         }}
       />
-      
-      {/* Grid lines */}
-      {gridLines.map((line, idx) => (
+
+      {gridLines(bbox).map((line) => (
         <Polyline
-          key={idx}
-          positions={line as LatLngExpression[]}
+          key={line.map(([lat, lon]) => `${lat.toFixed(6)},${lon.toFixed(6)}`).join('|')}
+          positions={line}
           pathOptions={{
-            color: isCreating ? '#6ee7b7' : '#93c5fd',
+            color: tooLarge ? '#fca5a5' : isCreating ? '#6ee7b7' : '#93c5fd',
             weight: 1.5,
             opacity: isCreating ? 0.5 : 0.7,
-            dashArray: '3, 3'
+            dashArray: '3, 3',
           }}
         />
       ))}
-      
-      {/* Size label overlay - top right with higher z-index */}
-      {typeof window !== 'undefined' && (
-        <div className="leaflet-top leaflet-right" style={{ marginTop: '80px', marginRight: '10px', zIndex: 1002 }}>
-          <div className="bg-gradient-to-br from-blue-600 to-blue-700 text-white px-3 py-2 rounded-lg shadow-xl text-xs font-semibold border-2 border-blue-400/50 backdrop-blur-sm">
-            <div className="flex items-center gap-2">
-              <span className="text-base">📏</span>
-              <div>
-                <div className="font-bold">{width.toFixed(2)} × {height.toFixed(2)} km</div>
-                <div className="text-[10px] opacity-80">{(width * height).toFixed(2)} km²</div>
+
+      <div
+        className="leaflet-top leaflet-right"
+        style={{ marginTop: '80px', marginRight: '10px', zIndex: 1002 }}
+      >
+        <div
+          className={`text-white px-3 py-2 rounded-lg shadow-xl text-xs font-semibold border-2 backdrop-blur-sm ${
+            tooLarge
+              ? 'bg-gradient-to-br from-red-600 to-red-700 border-red-400/50'
+              : 'bg-gradient-to-br from-blue-600 to-blue-700 border-blue-400/50'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-base">{tooLarge ? '\u26a0\ufe0f' : '\ud83d\udccf'}</span>
+            <div>
+              <div className="font-bold">
+                {widthKm.toFixed(2)} \u00d7 {heightKm.toFixed(2)} km
               </div>
+              <div className="text-[10px] opacity-80">{areaKm2.toFixed(2)} km\u00b2</div>
             </div>
           </div>
         </div>
-      )}
+      </div>
     </>
   )
 }
@@ -180,6 +153,7 @@ export default function MapSelector({ onBBoxSelected, disabled }: MapSelectorPro
   const [searchQuery, setSearchQuery] = useState('')
   const [isSearching, setIsSearching] = useState(false)
   const [isSelectionMode, setIsSelectionMode] = useState(false)
+  const [searchError, setSearchError] = useState<string | null>(null)
 
   const layerUrls = {
     osm: {
@@ -201,25 +175,32 @@ export default function MapSelector({ onBBoxSelected, disabled }: MapSelectorPro
   }
 
   const handleSearch = async () => {
-    if (!searchQuery.trim() || !mapRef.current) return
-    
+    const query = searchQuery.trim()
+    if (!query || !mapRef.current) return
+
     setIsSearching(true)
+    setSearchError(null)
     try {
-      // Using Nominatim (OpenStreetMap) geocoding API
       const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=1`
+        `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`,
+        // Nominatim's usage policy requires an identifiable client.
+        { headers: { Accept: 'application/json' } },
       )
-      const data = await response.json()
-      
-      if (data && data.length > 0) {
-        const { lat, lon } = data[0]
-        const map = mapRef.current
-        if (map) {
-          map.setView([parseFloat(lat), parseFloat(lon)], 13)
-        }
+      if (!response.ok) {
+        throw new Error(`Search service returned ${response.status}`)
       }
+
+      const results = await response.json()
+      if (!Array.isArray(results) || results.length === 0) {
+        setSearchError(`No place found for "${query}"`)
+        return
+      }
+
+      mapRef.current.setView([parseFloat(results[0].lat), parseFloat(results[0].lon)], 13)
     } catch (error) {
-      console.error('Search error:', error)
+      // Previously this only reached the console, so a failed search looked
+      // identical to a search that simply did not move the map.
+      setSearchError(error instanceof Error ? error.message : 'Search failed')
     } finally {
       setIsSearching(false)
     }
@@ -234,7 +215,7 @@ export default function MapSelector({ onBBoxSelected, disabled }: MapSelectorPro
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+            onKeyDown={(event) => event.key === 'Enter' && handleSearch()}
             placeholder={t('map.search.placeholder')}
             className="flex-1 bg-gray-700 text-white px-3 py-2 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             disabled={disabled || isSearching}
@@ -248,6 +229,11 @@ export default function MapSelector({ onBBoxSelected, disabled }: MapSelectorPro
             {isSearching ? t('map.search.searching') : t('map.search.button')}
           </button>
         </div>
+        {searchError && (
+          <div className="mt-1 bg-red-900/90 text-red-100 text-xs px-3 py-2 rounded" role="alert">
+            {searchError}
+          </div>
+        )}
       </div>
       
       <MapContainer

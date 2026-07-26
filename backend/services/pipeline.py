@@ -27,16 +27,18 @@ import json
 import threading
 from collections.abc import Callable
 from contextlib import suppress
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import numpy as np
 
 from core.config import Settings, get_settings
+from core.geo import bbox_dimensions
 from core.logging_config import get_logger
 from core.paths import safe_join
+from core.projection import LocalProjection, TerrainSampler
 from models.map_request import MapGenerationRequest
-from models.terrain import HeightmapConfig
+from models.terrain import HeightmapConfig, TerrainData
 from services.data_sources import DataSourceFactory, DataSourceType
 from services.data_sources.base import Capability, DataSourceInterface
 from services.data_sources.factory import NoDataSourceAvailableError
@@ -49,6 +51,16 @@ logger = get_logger(__name__)
 
 class PipelineError(RuntimeError):
     """Raised when a generation stage fails in a way the user can act on."""
+
+
+@dataclass
+class LevelContent:
+    """Placeable content derived from detected vectors."""
+
+    decal_roads: dict | None = None
+    building_items: list[dict] = field(default_factory=list)
+    mesh_files: list[str] = field(default_factory=list)
+    stats: dict[str, int] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -204,6 +216,9 @@ class MapGenerationPipeline:
         # -- terrain ----------------------------------------------------------
         progress.start("process_terrain")
         terrain = self.terrain.process_dem(dem_data)
+        # BeamNG terrain blocks are square. Crop before resampling so the
+        # exported map is not stretched along its shorter axis.
+        terrain, effective_bbox = self.terrain.crop_to_square(terrain, bbox)
         self.job_store.update(job_id, stats={"terrain": terrain.summary()})
         progress.finish("process_terrain")
 
@@ -224,6 +239,16 @@ class MapGenerationPipeline:
         self.job_store.attach_artifact(job_id, "preview", preview_path)
         progress.finish("preview")
 
+        # -- level content ----------------------------------------------------
+        # Detected roads and buildings only become level content once the
+        # heightmap exists: their heights are sampled from it, so they sit on
+        # the terrain instead of floating at sea level.
+        level_content = self._build_level_content(
+            vector_data, effective_bbox, heightmap, terrain, work_dir
+        )
+        if level_content.stats:
+            self.job_store.update(job_id, stats=level_content.stats)
+
         # -- package ----------------------------------------------------------
         progress.start("package")
         exporter = BeamNGExporter(output_dir=self.settings.output_dir)
@@ -232,9 +257,12 @@ class MapGenerationPipeline:
             heightmap_path=heightmap_path,
             preview_path=preview_path,
             terrain=terrain,
-            bbox=bbox,
+            bbox=effective_bbox,
             source_name=source.get_source_name(),
             vector_data=vector_data,
+            decal_roads=level_content.decal_roads,
+            building_items=level_content.building_items,
+            mesh_files=level_content.mesh_files,
         )
         self.job_store.attach_artifact(job_id, "archive", archive_path)
         progress.finish("package")
@@ -251,6 +279,76 @@ class MapGenerationPipeline:
             },
         )
         logger.info("Job %s completed: %s (%.1f MB)", job_id, archive_path, size_mb)
+
+    # -- level content --------------------------------------------------------
+
+    def _build_level_content(
+        self,
+        vector_data: dict[str, list] | None,
+        bbox: list[float],
+        heightmap: np.ndarray,
+        terrain: TerrainData,
+        work_dir: Path,
+    ) -> LevelContent:
+        """
+        Turn detected vectors into placeable BeamNG level content.
+
+        Returns empty content when nothing was detected, which is the normal
+        case: AI segmentation is off by default.
+        """
+        if not vector_data:
+            return LevelContent()
+
+        roads = vector_data.get("roads") or []
+        buildings = vector_data.get("buildings") or []
+        if not roads and not buildings:
+            return LevelContent()
+
+        from services.beamng_integration import BuildingPlacer, MeshBuilder, RoadBuilder
+
+        projection = LocalProjection.from_bbox(bbox)
+        square_size = bbox_dimensions(*bbox).max_side_meters / heightmap.shape[0]
+        sampler = TerrainSampler(
+            heightmap,
+            min_elevation=terrain.min_elevation,
+            elevation_range=terrain.elevation_range,
+            square_size=square_size,
+        )
+
+        content = LevelContent()
+
+        if roads:
+            content.decal_roads = RoadBuilder(projection, sampler).create_decal_roads(roads)
+            content.stats["decal_roads"] = len(content.decal_roads.get("roads", []))
+
+        if buildings:
+            mesh_builder = MeshBuilder(projection)
+            mesh_dir = work_dir / "meshes"
+            mesh_dir.mkdir(parents=True, exist_ok=True)
+
+            placeable: list[dict] = []
+            mesh_paths: list[str] = []
+            for index, building in enumerate(buildings, start=1):
+                collada = mesh_builder.build_mesh(building, index)
+                if collada is None:
+                    continue
+                mesh_file = mesh_dir / f"building_{index:04d}.dae"
+                mesh_file.write_text(collada, encoding="utf-8")
+
+                placeable.append(building)
+                content.mesh_files.append(str(mesh_file))
+                # Path as the level will see it, once the exporter has copied
+                # the mesh into the archive.
+                mesh_paths.append(
+                    f"levels/{work_dir.name}/art/shapes/buildings/{mesh_file.name}"
+                )
+
+            content.building_items = BuildingPlacer(projection, sampler).create_building_items(
+                placeable, mesh_paths
+            )
+            content.stats["building_items"] = len(content.building_items)
+
+        return content
 
     # -- AI stages ------------------------------------------------------------
 

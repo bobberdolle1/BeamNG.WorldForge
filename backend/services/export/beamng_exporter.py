@@ -10,10 +10,14 @@ Layout produced::
         ├── items.level.json              Objects placed on the map
         ├── preview.png                   Thumbnail
         ├── WORLDFORGE.md                 Provenance + import notes
-        ├── art/terrains/main_terrain/
-        │   ├── heightmap.png             16-bit grayscale heightmap
-        │   └── layers.json               Terrain material layers
-        └── vectors/*.geojson             Detected features (when AI is enabled)
+        ├── decalRoad.json                Detected roads (when AI is enabled)
+        ├── art/
+        │   ├── terrains/main_terrain/
+        │   │   ├── main_terrain.ter      Binary terrain the engine loads
+        │   │   ├── heightmap.png         16-bit heightmap, for manual import
+        │   │   └── layers.json           Terrain material layers
+        │   └── shapes/buildings/*.dae    Extruded building meshes
+        └── vectors/*.json                Detected features (when AI is enabled)
 """
 
 from __future__ import annotations
@@ -101,6 +105,12 @@ class BeamNGExporter:
 
             shutil.copy2(heightmap_path, terrain_dir / "heightmap.png")
 
+            # BeamNG loads terrain from a binary .ter, not from a PNG - the PNG
+            # is only what the World Editor's import command reads. Writing both
+            # means the level has a chance of loading as-is, while the PNG keeps
+            # the manual import path open if the binary is rejected.
+            self._write_terrain_file(terrain_dir / "main_terrain.ter", heightmap_path)
+
             if preview_path and Path(preview_path).exists():
                 shutil.copy2(preview_path, level_dir / "preview.png")
             else:
@@ -130,12 +140,18 @@ class BeamNGExporter:
                     )
 
             if mesh_files:
-                shapes_dir = terrain_dir / "shapes" / "buildings"
+                # art/shapes/, not art/terrains/*/shapes/: shapes live at the
+                # level root in BeamNG, and the item entries reference them as
+                # levels/<name>/art/shapes/buildings/<file>.
+                shapes_dir = level_dir / "art" / "shapes" / "buildings"
                 shapes_dir.mkdir(parents=True, exist_ok=True)
+                copied = 0
                 for mesh_file in mesh_files:
                     mesh_path = Path(mesh_file)
                     if mesh_path.exists():
                         shutil.copy2(mesh_path, shapes_dir / mesh_path.name)
+                        copied += 1
+                logger.info("Copied %d building mesh(es)", copied)
 
             (level_dir / "WORLDFORGE.md").write_text(
                 self._readme(map_name, square_size, terrain, bbox, source_name),
@@ -151,6 +167,28 @@ class BeamNGExporter:
             "Mod created: %s (%.2f MB)", archive_path, archive_path.stat().st_size / (1024 * 1024)
         )
         return archive_path
+
+    @staticmethod
+    def _write_terrain_file(destination: Path, heightmap_path: Path) -> None:
+        """
+        Convert the heightmap PNG into a binary ``.ter``.
+
+        Non-fatal: if the conversion fails, the archive still ships the PNG and
+        the WORLDFORGE notes explain how to import it by hand. Losing the whole
+        export over an optional convenience would be the wrong trade.
+        """
+        try:
+            import numpy as np
+            from PIL import Image
+
+            from .terrain_file import write_ter
+
+            with Image.open(heightmap_path) as image:
+                heights = np.array(image)
+
+            write_ter(destination, heights.astype(np.uint16))
+        except Exception as exc:  # noqa: BLE001 - optional artefact
+            logger.warning("Could not write .ter terrain file (%s); PNG only", exc)
 
     # -- metadata -------------------------------------------------------------
 
@@ -221,7 +259,10 @@ class BeamNGExporter:
             "time": {"time": 0.5, "timeScale": 1.0, "play": False},
             "gravity": -9.81,
             "terrain": {
-                "terrainFile": "art/terrains/main_terrain/heightmap.png",
+                # The engine reads the binary .ter; heightmap.png is kept
+                # alongside it for a manual World Editor import.
+                "terrainFile": "art/terrains/main_terrain/main_terrain.ter",
+                "heightmapImage": "art/terrains/main_terrain/heightmap.png",
                 "squareSize": square_size,
                 "heightScale": round(max(height_scale, 1.0), 3),
                 "minHeight": round(min_height, 3),
@@ -314,14 +355,19 @@ class BeamNGExporter:
             "1. Copy this ZIP into `Documents/BeamNG.drive/<version>/mods/`.",
             "2. Start the game; the level appears under Freeroam.",
             "",
-            "## Notes",
-            "- `art/terrains/main_terrain/heightmap.png` is a 16-bit grayscale heightmap.",
-            "  0 maps to `terrain.minHeight` and 65535 to `minHeight + heightScale`",
+            "## Terrain files",
+            "This level ships the terrain twice:",
+            "",
+            "- `art/terrains/main_terrain/main_terrain.ter` - the binary format the",
+            "  engine loads. Written to the community-documented `.ter` layout; it has",
+            "  not been verified by loading this level in the game.",
+            "- `art/terrains/main_terrain/heightmap.png` - a 16-bit grayscale heightmap.",
+            "  Value 0 maps to `terrain.minHeight` and 65535 to `minHeight + heightScale`",
             "  (both in `main.level.json`).",
-            "- If the terrain does not load directly, import the heightmap through the",
-            "  in-game World Editor (Terrain > Import Heightmap) using the scale values above.",
-            "- Roads, buildings and materials are not generated; the level ships with the",
-            "  default grass material and no objects.",
+            "",
+            "If the level loads with no terrain, import the PNG through the in-game",
+            "World Editor (Terrain > Import Heightmap) using the scale values above.",
+            "That path always works.",
         ]
         return "\n".join(lines) + "\n"
 

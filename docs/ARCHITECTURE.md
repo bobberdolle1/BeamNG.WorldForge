@@ -76,6 +76,7 @@ Credentials come from `SettingsManager`, falling back to environment variables.
 
 | Provider | DEM | Imagery | Setup |
 |---|---|---|---|
+| AWS Terrain Tiles | ✅ SRTM / 3DEP composite | — | **None** - anonymous |
 | OpenTopography | ✅ Copernicus, SRTM, NASADEM, ALOS | — | Free API key |
 | Sentinel Hub | ✅ Copernicus GLO-30 | ✅ Sentinel-2 (10 m) | Free tier, OAuth2 |
 | Azure Maps | — | ✅ aerial tiles | Subscription key |
@@ -98,6 +99,20 @@ real elevation range into a sliver of the available bit depth.
 `TerrainData` holds a NumPy array. It used to be a Pydantic model with
 `elevation: list`, so a 2048×2048 DEM was converted into ~4.2 million
 individually validated Python floats and immediately converted back.
+
+### `services/beamng_integration/` - level content
+
+Converts detected vectors into placeable content: `road_builder` emits decal
+roads, `mesh_builder` extrudes footprints into COLLADA, `building_placer`
+positions them as `TSStatic` items.
+
+All deterministic. The `services/code_generation` package that used to sit here
+asked a language model to emit JBeam JSON and COLLADA XML, and fell back to
+procedural generation whenever the model's output failed validation - so the
+procedural path was already doing the work, without the network call or the
+chance of an invalid document. Only it survives.
+
+Coordinates are the substance of this layer. See `core/projection.py`.
 
 ### `services/export/` - packaging
 
@@ -142,6 +157,7 @@ shared storage (Redis), because each uvicorn worker has its own registry.
 | `logging_config.py` | Single logging setup, aligned with uvicorn's loggers. |
 | `paths.py` | Map-name validation/slugification and `safe_join`, which verifies a resolved path stays inside its base directory (symlinks included). |
 | `geo.py` | Degrees↔metres conversion, bbox sizing, raster dimension calculation. |
+| `projection.py` | Lat/lon → level-space metres, and elevation sampling from the heightmap. Objects are positioned relative to the region centre; absolute `lon * 111000` coordinates put them ~13,600 km from the origin. |
 
 ## Request flow
 
@@ -213,10 +229,10 @@ cd frontend && npm test
 * **No authentication.** Intended for local use.
 * **In-memory jobs.** They do not survive a restart and are not shared between
   uvicorn workers.
-* **Terrain only.** Roads, buildings, textures and props are not generated. The
-  code under `services/code_generation/` and `services/beamng_integration/`
-  targets that goal but is not wired into the pipeline.
-* **BeamNG's level format is not fully documented.** The archive follows the
-  observed structure; a heightmap may still need importing through the in-game
-  World Editor, which is why every archive ships a `WORLDFORGE.md` with the
-  exact scale values.
+* **The binary terrain file is unverified.** BeamNG loads a `.ter`, not a PNG.
+  `services/export/terrain_file.py` writes one to the community-documented
+  layout, and its round trip is covered by tests, but no generated level has
+  been loaded in the game from this repository. The PNG ships alongside it and
+  the World Editor import path always works.
+* **Textures and props are not generated.** Roads and buildings are, when AI
+  segmentation is enabled; terrain materials are the default grass layer.

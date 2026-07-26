@@ -266,10 +266,30 @@ def test_data_sources_endpoint_lists_every_source(client):
         assert isinstance(source["provides"], list)
 
 
-def test_unconfigured_sources_report_unavailable_not_error(client):
-    """With no credentials set, sources must be listed as unavailable."""
+def test_keyed_sources_report_unavailable_without_credentials(client):
+    """
+    With no credentials configured, every source that needs one is unavailable
+    - and says so rather than raising.
+    """
     payload = client.get("/api/data-sources").json()
-    assert all(source["available"] is False for source in payload["sources"])
+    keyed = [source for source in payload["sources"] if source["id"] != "aws_terrain"]
+
+    assert keyed, "expected several credentialed sources"
+    assert all(source["available"] is False for source in keyed)
+
+
+def test_aws_terrain_needs_no_setup(client):
+    """
+    The zero-config source is what makes a fresh clone usable.
+
+    Availability is not asserted here because that would require reaching S3;
+    what matters for the contract is that it advertises needing no setup.
+    """
+    payload = client.get("/api/data-sources").json()
+    aws = next(source for source in payload["sources"] if source["id"] == "aws_terrain")
+
+    assert aws["requires_setup"] is False
+    assert aws["provides"] == ["dem"]
 
 
 # -- settings -------------------------------------------------------------------
