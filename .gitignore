@@ -10,8 +10,12 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+# Anchored to the repository root: these are distutils build artefacts. Without
+# the leading slash the pattern also matches frontend/src/lib/, which silently
+# kept the selection and stage modules out of the repository and left the
+# frontend unbuildable.
+/lib/
+/lib64/
 parts/
 sdist/
 var/
